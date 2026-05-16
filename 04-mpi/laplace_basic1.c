@@ -31,7 +31,7 @@ void initialize() {
     int global_x; // xは各プロセスのローカルなインデックス、global_xは全体のインデックス
 
     /* 初期値を設定 (ローカルインデックスからグローバル座標を計算して代入する)*/
-    for (x = 1; x < xsize; x++) {
+    for (x = 1; x <= xsize; x++) {  // 【修正】< xsize を <= xsize に変更
         global_x = x + xsize * myid; // グローバルなx座標を計算
         for (y = 1; y < YSIZE + 1; y++) {
             u[x][y] = sin((global_x - 1.0) / XSIZE * PI) + cos((y - 1.0) / YSIZE * PI);
@@ -39,7 +39,7 @@ void initialize() {
     }
 
     /* 境界をゼロクリア */
-    for (x = 0; x < xsize + 1; x++) {
+    for (x = 0; x <= xsize + 1; x++) {  // 【修正】< xsize + 1 を <= xsize + 1 に変更
         u[x][0] = u[x][YSIZE + 1] = 0.0;
         uu[x][0] = uu[x][YSIZE + 1] = 0.0;
     }
@@ -83,7 +83,7 @@ void lap_solve(MPI_Comm comm) {
 
     for (k = 0; k < NITER; k++) {
         /* old <- new */
-        for (x = 1; x < xsize; x++) {
+        for (x = 1; x <= xsize; x++) {  // 【修正】< xsize を <= xsize に変更
             for (y = 1; y < YSIZE + 1; y++) {
                 uu[x][y] = u[x][y];
             }
@@ -105,7 +105,7 @@ void lap_solve(MPI_Comm comm) {
         MPI_Wait(&req2, &status2);
 
         /* update (局所インデックスを使用)*/
-        for (x = 1; x < xsize; x++) {
+        for (x = 1; x <= xsize; x++) {  // 【修正】< xsize を <= xsize に変更
             for (y = 1; y < YSIZE + 1; y++) {
                 u[x][y] = .25 * (uu[x - 1][y] + uu[x + 1][y] + uu[x][y - 1] + uu[x][y + 1]);
             }
@@ -114,7 +114,7 @@ void lap_solve(MPI_Comm comm) {
 
     /* check sum */
     sum = 0.0;
-    for (x = 1; x < xsize; x++) {
+    for (x = 1; x <= xsize; x++) {  // 【修正】< xsize を <= xsize に変更
         for (y = 1; y < YSIZE + 1; y++) {
             sum += uu[x][y] - u[x][y];
         }
