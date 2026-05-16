@@ -1,0 +1,91 @@
+# ========================================
+# C/C++ Build Artifacts
+# ========================================
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects / Dynamic libraries
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files and symbols
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# ========================================
+# Project Specific (Custom Executables)
+# ========================================
+# 拡張子のない特定の実行ファイルを直下に作成する場合はここに追記します
+main
+test_app
+
+# ========================================
+# Build Directories
+# ========================================
+# ビルド用のディレクトリを分ける場合は、ディレクトリごと除外するのが一般的です
+build/
+bin/
+out/
+Release/
+Debug/
+
+# ========================================
+# HPC Seminar / Lecture Materials
+# ========================================
+# 講義資料（PDFなど）を格納する専用ディレクトリを除外
+# 03-OpenMP/materials/ などのように各ディレクトリ内に作成して使用します
+materials/
+lecture_notes/
+docs/
+
+# ========================================
+# Typst / Report Artifacts
+# ========================================
+# コンパイルで自動生成されるレポートPDFを除外
+# （ソースである report.typ や、素材である figure.pdf はコミット対象とするため *.pdf 全体の除外はしない）
+report*.pdf
+
+# ========================================
+# IDEs and Editors
+# ========================================
+.vscode/
+.idea/
+*.swp
+*~
+*.tmp
+
+# ========================================
+# OS Generated Files
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db

@@ -1,0 +1,17 @@
+{
+  "name": "HPC Seminar",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "C_Cpp.default.compilerPath": "/usr/bin/gcc"
+      },
+      "extensions": ["ms-vscode.cpptools", "github.copilot"]
+    }
+  },
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+}
