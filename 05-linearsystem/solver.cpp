@@ -41,9 +41,9 @@ void matvec(const CRSMatrix& A, const std::vector<double>& x, std::vector<double
 // 課題指定の行列 A を CRS形式で作成
 CRSMatrix create_matrix_A(int n, double gamma) {
     CRSMatrix A;
-    A.n = n;
-    A.row_ptr.assign(n + 1, 0);
-    int nnz = 0;
+    A.n = n; // 行列のサイズを設定
+    A.row_ptr.assign(n + 1, 0); // `row_ptr`を初期化
+    int nnz = 0; // 非ゼロ要素の数をカウントする変数
     
     for (int i = 0; i < n; ++i) {
         A.row_ptr[i] = nnz;
@@ -74,7 +74,6 @@ CRSMatrix create_matrix_AT(int n, double gamma) {
     
     for (int i = 0; i < n; ++i) {
         AT.row_ptr[i] = nnz;
-        // 転置なので subdiagonal と superdiagonal が入れ替わる
         if (i > 0) {
             AT.val.push_back(1.0);
             AT.col_ind.push_back(i - 1);
@@ -97,7 +96,7 @@ CRSMatrix create_matrix_AT(int n, double gamma) {
 std::vector<double> solve_BiCG(const CRSMatrix& A, const CRSMatrix& AT, const std::vector<double>& b, int max_iter, double eps) {
     int n = A.n;
     std::vector<double> x(n, 0.0);
-    std::vector<double> r = b; // 初期解がゼロベクトルなので r_0 = b
+    std::vector<double> r = b; 
     std::vector<double> r_star = r;
     std::vector<double> p = r;
     std::vector<double> p_star = r_star;
@@ -153,7 +152,7 @@ std::vector<double> solve_BiCG(const CRSMatrix& A, const CRSMatrix& AT, const st
 std::vector<double> solve_BiCGSTAB(const CRSMatrix& A, const std::vector<double>& b, int max_iter, double eps) {
     int n = A.n;
     std::vector<double> x(n, 0.0);
-    std::vector<double> r = b; // 初期解がゼロベクトルなので r_0 = b
+    std::vector<double> r = b; 
     std::vector<double> r_star_0 = r;
     std::vector<double> p = r;
     std::vector<double> q(n, 0.0);
@@ -212,15 +211,22 @@ std::vector<double> solve_BiCGSTAB(const CRSMatrix& A, const std::vector<double>
 }
 
 int main() {
-    int n = 10000; // 任意の行列サイズ
+    int n = 50000; 
     std::vector<double> gammas = {0.1, 0.5, 0.9};
     int max_iter = 10000;
     double eps = 1e-12;
     
+    // 現在の最大スレッド数を取得して表示
+    int num_threads = omp_get_max_threads();
+    std::cout << "====================================\n";
+    std::cout << " Matrix Size (n) : " << n << "\n";
+    std::cout << " OpenMP Threads  : " << num_threads << "\n";
+    std::cout << "====================================\n\n";
+
     std::ofstream ofs("out/residuals.csv");
     ofs << "Iteration,Method,Gamma,RelativeResidual\n";
     
-    std::vector<double> ones(n, 1.0);
+    std::vector<double> ones(n, 1.0); // 右辺ベクトルの準備用配列
     
     for (double gamma : gammas) {
         std::cout << "Solving for gamma = " << gamma << " ...\n";
@@ -231,20 +237,30 @@ int main() {
         std::vector<double> b(n, 0.0);
         matvec(A, ones, b); // b = A * [1, 1, ..., 1]^T
         
-        // BiCG法
+        // --- BiCG法の時間計測 ---
+        double start_time_bicg = omp_get_wtime();
         std::vector<double> res_BiCG = solve_BiCG(A, AT, b, max_iter, eps);
+        double end_time_bicg = omp_get_wtime();
+        double time_bicg = end_time_bicg - start_time_bicg;
+
         for (size_t i = 0; i < res_BiCG.size(); ++i) {
             ofs << i << ",BiCG," << gamma << "," << std::scientific << res_BiCG[i] << "\n";
         }
         
-        // BiCGSTAB法
+        // --- BiCGSTAB法の時間計測 ---
+        double start_time_bicgstab = omp_get_wtime();
         std::vector<double> res_BiCGSTAB = solve_BiCGSTAB(A, b, max_iter, eps);
+        double end_time_bicgstab = omp_get_wtime();
+        double time_bicgstab = end_time_bicgstab - start_time_bicgstab;
+
         for (size_t i = 0; i < res_BiCGSTAB.size(); ++i) {
             ofs << i << ",BiCGSTAB," << gamma << "," << std::scientific << res_BiCGSTAB[i] << "\n";
         }
         
-        std::cout << "  BiCG converged in " << res_BiCG.size() - 1 << " iterations.\n";
-        std::cout << "  BiCGSTAB converged in " << res_BiCGSTAB.size() - 1 << " iterations.\n";
+        std::cout << "  [BiCG]     Converged in " << res_BiCG.size() - 1 
+                  << " iters. Time: " << std::fixed << std::setprecision(6) << time_bicg << " sec\n";
+        std::cout << "  [BiCGSTAB] Converged in " << res_BiCGSTAB.size() - 1 
+                  << " iters. Time: " << std::fixed << std::setprecision(6) << time_bicgstab << " sec\n\n";
     }
     
     ofs.close();
