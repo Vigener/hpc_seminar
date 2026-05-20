@@ -32,7 +32,6 @@ void matvec(const CRSMatrix& A, const std::vector<double>& x, std::vector<double
     for (int i = 0; i < n; ++i) {
         double sum = 0.0;
         for (int j = A.row_ptr[i]; j < A.row_ptr[i+1]; ++j) {
-            // col_ind is 1-indexed now, subtract 1 to index into x (0-based)
             sum += A.val[j] * x[A.col_ind[j] - 1];
         }
         y[i] = sum;
@@ -44,7 +43,6 @@ CRSMatrix create_matrix_A(int n, double gamma) {
     CRSMatrix A;
     A.n = n; // 行列のサイズを設定
     A.row_ptr.assign(n + 1, 0); // `row_ptr`を初期化
-    // 1-indexed CRS: reserve dummy element at index 0 so val/col_ind start from 1
     A.val.assign(1, 0.0);
     A.col_ind.assign(1, 0);
     int nnz = 1; // 非ゼロ要素の格納位置を1から始める
@@ -53,15 +51,15 @@ CRSMatrix create_matrix_A(int n, double gamma) {
         A.row_ptr[i] = nnz;
         if (i > 0) {
             A.val.push_back(gamma);
-            A.col_ind.push_back(i);        // (i-1) + 1 -> i (1-indexed column)
+            A.col_ind.push_back(i);
             ++nnz;
         }
         A.val.push_back(2.0);
-        A.col_ind.push_back(i + 1);    // i -> i+1 (1-indexed column)
+        A.col_ind.push_back(i + 1);
         ++nnz;
         if (i < n - 1) {
             A.val.push_back(1.0);
-            A.col_ind.push_back(i + 2);  // (i+1) + 1 -> i+2 (1-indexed column)
+            A.col_ind.push_back(i + 2);
             ++nnz;
         }
     }
@@ -82,15 +80,15 @@ CRSMatrix create_matrix_AT(int n, double gamma) {
         AT.row_ptr[i] = nnz;
         if (i > 0) {
             AT.val.push_back(1.0);
-            AT.col_ind.push_back(i);     // (i-1)+1 -> i
+            AT.col_ind.push_back(i);
             ++nnz;
         }
         AT.val.push_back(2.0);
-        AT.col_ind.push_back(i + 1);   // i+1
+        AT.col_ind.push_back(i + 1);
         ++nnz;
         if (i < n - 1) {
             AT.val.push_back(gamma);
-            AT.col_ind.push_back(i + 2); // (i+1)+1 -> i+2
+            AT.col_ind.push_back(i + 2);
             ++nnz;
         }
     }
