@@ -8,10 +8,16 @@
 #include <stdlib.h>
 
 /* square region */
+#ifndef XSIZE
 #define XSIZE 256
+#endif
+#ifndef YSIZE
 #define YSIZE 256
+#endif
 #define PI 3.1415927
+#ifndef NITER
 #define NITER 10000
+#endif
 
 /* グローバル変数を「ポインタのポインタ」に変更し、2D動的確保に対応 */
 double **u, **uu;
