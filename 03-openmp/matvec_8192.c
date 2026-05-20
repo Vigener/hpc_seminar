@@ -7,10 +7,10 @@
 #define N 8192
 
 // 計測用の補助関数
-void run_calculation(double **A, double *x, double *y, int use_simd, const char *label) {
+void run_calculation(double **A, double *x, double *y, int use_parallel, int use_simd, const char *label) {
     double start_time, end_time;
 
-    // ウォームアップ（計測の前に一度計算を行う）
+    // ウォームアップ1（イニシャルゼーション）：全スレッドでメモリアクセスを初期化
     #pragma omp parallel for
     for (int i = 0; i < M; i++) {
         double sum = 0.0;
@@ -20,26 +20,77 @@ void run_calculation(double **A, double *x, double *y, int use_simd, const char 
         }
         y[i] = sum;
     }
+
+    // ウォームアップ2（モード別）：計測対象のモードに合わせたウォームアップ
+    if (use_parallel) {
+        #pragma omp parallel for
+        for (int i = 0; i < M; i++) {
+            double sum = 0.0;
+            if (use_simd) {
+                #pragma omp simd reduction(+:sum)
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            } else {
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            }
+            y[i] = sum;
+        }
+    } else {
+        for (int i = 0; i < M; i++) {
+            double sum = 0.0;
+            if (use_simd) {
+                #pragma omp simd reduction(+:sum)
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            } else {
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            }
+            y[i] = sum;
+        }
+    }
     // ------------------------------------------------
 
     // 計測開始
     start_time = omp_get_wtime();
 
     // 本番の行列ベクトル積の計算
-    #pragma omp parallel for
-    for (int i = 0; i < M; i++) {
-        double sum = 0.0;
-        if (use_simd) {
-            #pragma omp simd reduction(+:sum)
-            for (int j = 0; j < N; j++) {
-                sum += A[i][j] * x[j];
+    if (use_parallel) {
+        #pragma omp parallel for
+        for (int i = 0; i < M; i++) {
+            double sum = 0.0;
+            if (use_simd) {
+                #pragma omp simd reduction(+:sum)
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            } else {
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
             }
-        } else {
-            for (int j = 0; j < N; j++) {
-                sum += A[i][j] * x[j];
-            }
+            y[i] = sum;
         }
-        y[i] = sum;
+    } else {
+        for (int i = 0; i < M; i++) {
+            double sum = 0.0;
+            if (use_simd) {
+                #pragma omp simd reduction(+:sum)
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            } else {
+                for (int j = 0; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+            }
+            y[i] = sum;
+        }
     }
 
     // 計測終了
@@ -72,15 +123,19 @@ int main() {
         x[j] = 1.0;
     }
 
-    // 最適化なしバージョンを実行
-    printf("[Unoptimized]\n");
-    run_calculation(A, x, y, 0, "Unoptimized");
+    // 3パターンを比較する
+    printf("[Serial]\n");
+    run_calculation(A, x, y, 0, 0, "Serial");
 
     printf("\n");
 
-    // 最適化ありバージョンを実行
-    printf("[Optimized with SIMD]\n");
-    run_calculation(A, x, y, 1, "Optimized");
+    printf("[Parallel]\n");
+    run_calculation(A, x, y, 1, 0, "Parallel");
+
+    printf("\n");
+
+    printf("[Parallel with SIMD]\n");
+    run_calculation(A, x, y, 1, 1, "Parallel with SIMD");
 
     // メモリ解放
     for (int i = 0; i < M; i++) {
