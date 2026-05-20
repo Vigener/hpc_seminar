@@ -52,6 +52,7 @@ test_app
 build/
 bin/
 out/
+results/
 Release/
 Debug/
 
