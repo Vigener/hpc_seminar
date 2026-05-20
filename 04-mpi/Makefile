@@ -1,5 +1,14 @@
 .PHONY: build release debug run run-basic clean
 
+PYTHON ?= python3
+BENCHMARK_SIZES ?= 128 256 512 1024
+BENCHMARK_PROCS ?= 1 2 4
+BENCHMARK_REPEATS ?= 3
+BENCHMARK_NITER ?= 1000
+BENCHMARK_DIR ?= results
+BENCHMARK_CSV ?= $(BENCHMARK_DIR)/laplace_benchmark.csv
+BENCHMARK_PLOT ?= $(BENCHMARK_DIR)/laplace_speedup.png
+
 CC := mpicc
 CFLAGS_BASE := -Wall
 CFLAGS_DEBUG := $(CFLAGS_BASE) -g -O0
@@ -72,3 +81,15 @@ run-advanced-%: release
 
 clean:
 	rm -f bin/laplace bin/laplace_basic1 bin/laplace_basic2 bin/laplace_advanced
+
+benchmark: release
+	@mkdir -p $(BENCHMARK_DIR)
+	@$(PYTHON) scripts/benchmark_laplace.py \
+		--sizes $(BENCHMARK_SIZES) \
+		--processes $(BENCHMARK_PROCS) \
+		--repeats $(BENCHMARK_REPEATS) \
+		--niter $(BENCHMARK_NITER) \
+		--output $(BENCHMARK_CSV)
+
+plot-benchmark:
+	@$(PYTHON) scripts/plot_laplace_speedup.py $(BENCHMARK_CSV) $(BENCHMARK_PLOT)
