@@ -15,8 +15,19 @@ RUN apt-get update && apt-get install -y \
     git \
     openssh-client \
     curl \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python-is-python3 \
+    python3-numpy \
+    python3-pandas \
+    python3-matplotlib \
+    fonts-noto-cjk \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install python packages that are better installed via pip
+RUN python3 -m pip install --no-cache-dir japanize-matplotlib
 
 # Starshipのインストール
 RUN curl -sS https://starship.rs/install.sh | sh -s -- -y
