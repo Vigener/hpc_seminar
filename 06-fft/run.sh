@@ -10,6 +10,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # PPX では既存の実行バイナリを直接呼ぶ
-./bin/fft_benchmark_cpp --size "${FFT_SIZE:-65536}" > ./out/fft_benchmark.csv
+RAWCSV=./out/fft_benchmark.csv
+./bin/fft_benchmark_cpp --size "${FFT_SIZE:-65536}" > "$RAWCSV"
 
-echo "Wrote ./out/fft_benchmark.csv"
+echo "Wrote $RAWCSV"

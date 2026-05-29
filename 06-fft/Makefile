@@ -19,6 +19,7 @@ PNG_OUT := $(OUT_DIR)/fft_benchmark.png
 
 all: build
 
+build: | $(OUT_DIR)
 build: $(TARGET) $(TARGET_CPP)
 
 $(BIN_DIR):
