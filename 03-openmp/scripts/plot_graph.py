@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import re
+import csv
 from pathlib import Path
 
 import japanize_matplotlib
@@ -14,121 +14,90 @@ import matplotlib.pyplot as plt
 FONT_SIZE_TITLE = 24
 FONT_SIZE_AXIS_LABEL = 20
 FONT_SIZE_TICKS = 14
-FONT_SIZE_LEGEND = 14
+FONT_SIZE_LEGEND = 12
 
 THREAD_ORDER = [1, 2, 4]
-SIZE_ORDER = ["M=N=4096", "M=N=8192"]
-MODE_ORDER = ["serial", "parallel", "parallel_simd"]
+
+# Preferred ordering for display (will be filtered by CSV contents)
+PREFERRED_MODE_ORDER = ["serial", "parallel", "simd_reduction", "no_simd"]
+
 MODE_DISPLAY = {
     "serial": "Serial",
     "parallel": "Parallel",
-    "parallel_simd": "Parallel + SIMD",
+    "simd_reduction": "SIMD Reduction",
+    "no_simd": "No SIMD",
 }
 
-# (size, mode) -> style
-SERIES_STYLE = {
-    ("M=N=4096", "serial"): {"color": "#1f77b4", "marker": "o", "linestyle": "-"},
-    ("M=N=4096", "parallel"): {"color": "#1f77b4", "marker": "s", "linestyle": "--"},
-    ("M=N=4096", "parallel_simd"): {"color": "#1f77b4", "marker": "^", "linestyle": ":"},
-    ("M=N=8192", "serial"): {"color": "#d62728", "marker": "o", "linestyle": "-"},
-    ("M=N=8192", "parallel"): {"color": "#d62728", "marker": "s", "linestyle": "--"},
-    ("M=N=8192", "parallel_simd"): {"color": "#d62728", "marker": "^", "linestyle": ":"},
-}
+SIZE_PALETTE = ["#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b"]
 
-THREAD_RE = re.compile(r"^OMP_NUM_THREADS=(\d+)$")
-TIME_RE = re.compile(
-    r"^(Serial|Parallel|Parallel with SIMD|Unoptimized|Optimized|Optimized with SIMD):\s+Execution Time:\s+([0-9.]+)\s+sec$"
-)
-
-LABEL_TO_MODE = {
-    "Serial": "serial",
-    "Parallel": "parallel",
-    "Parallel with SIMD": "parallel_simd",
-    "Unoptimized": "serial",
-    "Optimized": "parallel_simd",
-    "Optimized with SIMD": "parallel_simd",
+MODE_STYLE = {
+    "serial": {"marker": "o", "linestyle": "-"},
+    "parallel": {"marker": "s", "linestyle": "--"},
+    "simd_reduction": {"marker": "^", "linestyle": ":"},
+    "no_simd": {"marker": "D", "linestyle": "-."},
 }
 
 
-def parse_run_output(input_path: Path) -> dict[str, dict[str, dict[int, float]]]:
-    """Parse a combined run output file with all modes."""
-    data: dict[str, dict[str, dict[int, float]]] = {
-        mode: {size: {} for size in SIZE_ORDER} for mode in MODE_ORDER
-    }
-    
-    current_size = SIZE_ORDER[0]
-    current_thread_count: int | None = None
+def parse_results(input_path: Path) -> tuple[dict[str, dict[int, dict[int, float]]], list[int], list[str]]:
+    data: dict[str, dict[int, dict[int, float]]] = {}
+    sizes: set[int] = set()
+    modes_seen: set[str] = set()
 
-    for raw_line in input_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
+    with input_path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        required_fields = {"size", "mode", "threads", "time_sec"}
+        if set(reader.fieldnames or ()) != required_fields:
+            raise ValueError(f"CSV の列が不正です: {reader.fieldnames}")
 
-        # Check for size marker
-        if line == "=== M=N=4096 ===":
-            current_size = "M=N=4096"
-            current_thread_count = None
-            continue
-        elif line == "=== M=N=8192 ===":
-            current_size = "M=N=8192"
-            current_thread_count = None
-            continue
+        for row in reader:
+            size = int(row["size"])
+            mode = row["mode"]
+            threads = int(row["threads"])
+            time_ms = float(row["time_sec"]) * 1000.0
 
-        # Check for thread count
-        thread_match = THREAD_RE.match(line)
-        if thread_match:
-            current_thread_count = int(thread_match.group(1))
-            continue
+            sizes.add(size)
+            modes_seen.add(mode)
+            data.setdefault(mode, {}).setdefault(size, {})
+            data[mode][size][threads] = time_ms
 
-        # Check for result line
-        time_match = TIME_RE.match(line)
-        if time_match:
-            label = time_match.group(1)
-            time_sec = float(time_match.group(2))
-            time_ms = time_sec * 1000.0
+    # Determine mode order by preferred ordering then any extras (stable)
+    mode_order = [m for m in PREFERRED_MODE_ORDER if m in modes_seen]
+    for m in sorted(modes_seen):
+        if m not in mode_order:
+            mode_order.append(m)
 
-            if current_thread_count is None:
-                raise ValueError(f"実行時間が見つかりましたがスレッド数が不明です: {line}")
-
-            mode = LABEL_TO_MODE.get(label)
-            if mode is None:
-                raise ValueError(f"未対応のラベルです: {label}")
-
-            data[mode][current_size][current_thread_count] = time_ms
-
-    return data
+    return data, sorted(sizes), mode_order
 
 
-def validate_data(data: dict[str, dict[str, dict[int, float]]]) -> None:
-    """Validate that all datasets have all required sizes and thread counts"""
-    for mode in MODE_ORDER:
-        for size_label in SIZE_ORDER:
-            series = data.get(mode, {}).get(size_label, {})
+def validate_data(data: dict[str, dict[int, dict[int, float]]], sizes: list[int], mode_order: list[str]) -> None:
+    for mode in mode_order:
+        for size in sizes:
+            series = data.get(mode, {}).get(size, {})
             missing_threads = [t for t in THREAD_ORDER if t not in series]
             if missing_threads:
-                raise ValueError(f"{size_label} の {mode} データが不足しています: {missing_threads}")
+                raise ValueError(f"size={size} の {mode} データが不足しています: {missing_threads}")
 
 
-def plot_graph(
-    data: dict[str, dict[str, dict[int, float]]],
-    output_path: Path,
-) -> None:
-    fig, ax = plt.subplots(figsize=(12, 7))
+def plot_graph(data: dict[str, dict[int, dict[int, float]]], sizes: list[int], mode_order: list[str], output_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(13, 8))
 
-    for size_label in SIZE_ORDER:
-        for mode in MODE_ORDER:
-            series = data[mode][size_label]
+    size_styles = {size: {"color": SIZE_PALETTE[index % len(SIZE_PALETTE)]} for index, size in enumerate(sizes)}
+
+    for size in sizes:
+        for mode in mode_order:
+            series = data[mode][size]
             x_values = THREAD_ORDER
             y_values = [series[thread_count] for thread_count in x_values]
-            style = SERIES_STYLE[(size_label, mode)]
+            size_style = size_styles[size]
+            mode_style = MODE_STYLE[mode]
+            label_display = f"M=N={size} ({MODE_DISPLAY.get(mode, mode)})"
 
-            label_display = f"{size_label} ({MODE_DISPLAY[mode]})"
             ax.plot(
                 x_values,
                 y_values,
-                marker=style["marker"],
-                color=style["color"],
-                linestyle=style["linestyle"],
+                marker=mode_style["marker"],
+                color=size_style["color"],
+                linestyle=mode_style["linestyle"],
                 linewidth=2,
                 markersize=8,
                 label=label_display,
@@ -142,18 +111,18 @@ def plot_graph(
                     textcoords="offset points",
                     ha="center",
                     fontsize=FONT_SIZE_TICKS - 1,
-                    color=style["color"],
+                    color=size_style["color"],
                 )
 
     ax.set_xlabel("スレッド数", fontsize=FONT_SIZE_AXIS_LABEL)
     ax.set_ylabel("実行時間 [ms]", fontsize=FONT_SIZE_AXIS_LABEL)
-    ax.set_title("OpenMP 行列ベクトル積の実行時間比較\n（並列化とSIMDの有無）", fontsize=FONT_SIZE_TITLE)
+    ax.set_title("OpenMP 行列ベクトル積の実行時間比較\n（4 実装 + 2 サイズ）", fontsize=FONT_SIZE_TITLE)
     ax.set_xticks(THREAD_ORDER)
     ax.tick_params(axis="x", labelsize=FONT_SIZE_TICKS)
     ax.tick_params(axis="y", labelsize=FONT_SIZE_TICKS)
     ax.set_ylim(bottom=0)
     ax.grid(True, linestyle="--", alpha=0.6)
-    ax.legend(fontsize=FONT_SIZE_LEGEND)
+    ax.legend(fontsize=FONT_SIZE_LEGEND, ncol=2)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, format=output_path.suffix.lstrip("."), bbox_inches="tight")
@@ -162,26 +131,18 @@ def plot_graph(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="OpenMP の実行時間（並列化と SIMD の有無）をスレッド数ごとに比較するグラフを描画します。"
+        description="OpenMP の実行時間を CSV から読み取り、4 実装と 2 サイズを比較するグラフを描画します。"
     )
-    parser.add_argument(
-        "input_file",
-        type=Path,
-        help="3 モードの結果を含む統合実行結果ファイル",
-    )
-    parser.add_argument(
-        "output_path",
-        type=Path,
-        help="出力先の画像または PDF ファイル",
-    )
+    parser.add_argument("input_file", type=Path, help="results/matvec_bench.csv")
+    parser.add_argument("output_path", type=Path, help="出力先の画像または PDF ファイル")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    data = parse_run_output(args.input_file)
-    validate_data(data)
-    plot_graph(data, args.output_path)
+    data, sizes, mode_order = parse_results(args.input_file)
+    validate_data(data, sizes, mode_order)
+    plot_graph(data, sizes, mode_order, args.output_path)
 
 
 if __name__ == "__main__":
