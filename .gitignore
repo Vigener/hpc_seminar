@@ -51,7 +51,8 @@ test_app
 # ビルド用のディレクトリを分ける場合は、ディレクトリごと除外するのが一般的です
 build/
 bin/
-out/
+**/out/*
+!**/out/*ppx*.csv
 results/
 Release/
 Debug/

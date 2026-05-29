@@ -1,0 +1,5 @@
+timestamp,source,nprocs,repeat_index,elapsed_sec,status
+2026-05-20T05:19:54Z,laplace,1,1,0.235975,ok
+2026-05-20T05:19:55Z,laplace_basic1,1,1,0.272201,ok
+2026-05-20T05:19:55Z,laplace_basic2,1,1,0.26379,ok
+2026-05-20T05:19:55Z,laplace_advanced,1,1,0.265981,ok

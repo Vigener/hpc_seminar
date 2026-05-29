@@ -1,0 +1,5 @@
+source,nprocs,repeat_count,mean_sec,stdev_sec
+laplace,1,1,0.235975000,0.000000000
+laplace_basic1,1,1,0.272201000,0.000000000
+laplace_basic2,1,1,0.263790000,0.000000000
+laplace_advanced,1,1,0.265981000,0.000000000
