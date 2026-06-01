@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -J laplace_ppx_raw
+#SBATCH -J laplace_ppx_test
 #SBATCH -N 4
 #SBATCH --ntasks-per-node=28
 #SBATCH -p ppx2
 #SBATCH -w ppx2-[00-03]
-#SBATCH -o out/laplace_%j.out
-#SBATCH -e out/laplace_%j.err
+#SBATCH -o out/laplace_test_%j.out
+#SBATCH -e out/laplace_test_%j.err
 #SBATCH -t 00:30:00
 
 set -euo pipefail
@@ -19,12 +19,12 @@ module load openmpi
 # 出力先を用意する。
 mkdir -p out results
 
-# 実行対象とプロセス数はこのスクリプト内で固定する。
-PROCS="1 2 4 8 16 32 64 112"
+# 確認用なので、外から上書きできるようにしておく。
+PROCS=${PROCS:-"1 2 4 8 16 32 64 112"}
 SOURCES=(laplace laplace_basic1 laplace_basic2 laplace_advanced)
-REPEATS=1
+REPEATS=${REPEATS:-1}
 
-RAWCSV="results/laplace_ppx_raw_$(date +%Y%m%d_%H%M%S).csv"
+RAWCSV=${RAWCSV:-"results/laplace_ppx_test_$(date +%Y%m%d_%H%M%S).csv"}
 echo "source,nprocs,repeat_index,elapsed_sec,status" > "$RAWCSV"
 
 export OMP_NUM_THREADS=1
