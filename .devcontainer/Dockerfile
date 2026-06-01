@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     gdb \
     make \
+    clangd \
     openmpi-bin \
     libopenmpi-dev \
     libomp-dev \
@@ -45,10 +46,13 @@ USER $USERNAME
 # Starshipの初期化設定
 RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc
 
-# 視覚的ノイズのパージ（設定ファイルの自動生成）
+# 視覚的ノイズにならないよう、絵文字1文字だけですっきり識別させる設定
 RUN mkdir -p ~/.config && \
     echo '[container]' > ~/.config/starship.toml && \
-    echo 'disabled = true' >> ~/.config/starship.toml && \
+    echo 'disabled = false' >> ~/.config/starship.toml && \
+    echo 'format = "[$symbol ]($style)"' >> ~/.config/starship.toml && \
+    echo 'symbol = "📦"' >> ~/.config/starship.toml && \
+    echo 'style = "bold blue"' >> ~/.config/starship.toml && \
     echo '' >> ~/.config/starship.toml && \
     echo '[nodejs]' >> ~/.config/starship.toml && \
     echo 'disabled = true' >> ~/.config/starship.toml && \
