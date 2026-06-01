@@ -20,6 +20,12 @@ ALGORITHM_COLORS = {
     "fft": "#2980b9",
 }
 
+FONT_SIZE_TITLE = 20
+FONT_SIZE_LABEL = 16
+FONT_SIZE_TICK = 13
+FONT_SIZE_ANNOTATION = 12
+FONT_SIZE_LEGEND = 12
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -71,6 +77,15 @@ def parse_elapsed(rows: list[dict[str, str]]) -> tuple[int, dict[str, float], di
     return n_value, elapsed_by_algorithm, error_by_algorithm
 
 
+def format_scientific_mathtext(value: float, precision: int = 2) -> str:
+    if value == 0.0:
+        return r"$0$"
+
+    exponent = int(f"{value:e}".split("e")[1])
+    mantissa = value / (10 ** exponent)
+    return rf"${mantissa:.{precision}f} \times 10^{{{exponent}}}$"
+
+
 def plot(output_file: Path, n_value: int, elapsed_by_algorithm: dict[str, float], error_by_algorithm: dict[str, float]) -> None:
     algorithms = ALGORITHM_ORDER
     labels = [ALGORITHM_LABELS[algorithm] for algorithm in algorithms]
@@ -79,20 +94,34 @@ def plot(output_file: Path, n_value: int, elapsed_by_algorithm: dict[str, float]
     fig, ax = plt.subplots(figsize=(9, 6))
     bars = ax.bar(labels, times, color=[ALGORITHM_COLORS[algorithm] for algorithm in algorithms], width=0.55)
     ax.set_yscale("log")
-    ax.set_ylabel("Execution time [sec] (log scale)")
-    ax.set_title(f"DFT vs FFT benchmark at N={n_value}")
+    ax.set_ylabel("Execution time [sec] (log scale)", fontsize=FONT_SIZE_LABEL)
+    ax.set_title(f"DFT vs FFT benchmark at N={n_value}", fontsize=FONT_SIZE_TITLE, pad=18)
+    ax.tick_params(axis="both", labelsize=FONT_SIZE_TICK)
     ax.grid(True, axis="y", linestyle="--", alpha=0.35)
 
     for bar, algorithm, elapsed in zip(bars, algorithms, times, strict=True):
+        annotation_text = (
+            f"{format_scientific_mathtext(elapsed)} s\n"
+            f"err={format_scientific_mathtext(error_by_algorithm[algorithm])}"
+        )
+        if algorithm == "dft":
+            offset = (0, -18)
+            vertical_align = "top"
+        else:
+            offset = (0, 8)
+            vertical_align = "bottom"
+
         ax.annotate(
-            f"{elapsed:.3e} s\nerr={error_by_algorithm[algorithm]:.2e}",
+            annotation_text,
             xy=(bar.get_x() + bar.get_width() / 2.0, elapsed),
-            xytext=(0, 8),
+            xytext=offset,
             textcoords="offset points",
             ha="center",
-            va="bottom",
-            fontsize=10,
+            va=vertical_align,
+            fontsize=FONT_SIZE_ANNOTATION,
         )
+
+    ax.legend(bars, labels, fontsize=FONT_SIZE_LEGEND)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()

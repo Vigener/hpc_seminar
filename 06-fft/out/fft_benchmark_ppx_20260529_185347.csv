@@ -1,0 +1,3 @@
+algorithm,n,elapsed_sec,max_abs_error
+dft,65536,11.3976,0.000000000000e+00
+fft,65536,0.00582509,3.93175e-07

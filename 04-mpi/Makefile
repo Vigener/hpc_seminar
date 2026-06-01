@@ -1,4 +1,4 @@
-.PHONY: build release debug run run-basic clean
+.PHONY: build build-ppx benchmark-ppx release debug run run-basic clean
 
 PYTHON ?= python3
 BENCHMARK_SIZES ?= 128 256 512 1024
@@ -14,12 +14,20 @@ CFLAGS_BASE := -Wall
 CFLAGS_DEBUG := $(CFLAGS_BASE) -g -O0
 CFLAGS_RELEASE := $(CFLAGS_BASE) -O3
 
+# PPX で 112 プロセスまで回すため、既定のビルドサイズは 896 にする。
+PPX_XSIZE ?= 896
+PPX_NITER ?= 1000
+PPX_DEFINE_FLAGS := -DXSIZE=$(PPX_XSIZE) -DYSIZE=$(PPX_XSIZE) -DNITER=$(PPX_NITER)
+
 # プロセス数（デフォルト: 4）
 NPROCS ?= 4
 
 # --- ビルドターゲット ---
 
 build: laplace laplace_basic1 laplace_basic2 laplace_advanced
+
+# PPX 用の実行バイナリは通常の build で揃う。
+build-ppx: build
 
 release: CFLAGS := $(CFLAGS_RELEASE)
 release: laplace laplace_basic1 laplace_basic2 laplace_advanced
@@ -28,16 +36,16 @@ debug: CFLAGS := $(CFLAGS_DEBUG)
 debug: laplace laplace_basic1
 
 laplace: laplace.c
-	@$(CC) $(CFLAGS) -o bin/laplace laplace.c -lm
+	@$(CC) $(CFLAGS) $(PPX_DEFINE_FLAGS) -o bin/laplace laplace.c -lm
 
 laplace_basic1: laplace_basic1.c
-	@$(CC) $(CFLAGS) -o bin/laplace_basic1 laplace_basic1.c -lm
+	@$(CC) $(CFLAGS) $(PPX_DEFINE_FLAGS) -o bin/laplace_basic1 laplace_basic1.c -lm
 
 laplace_basic2: laplace_basic2.c
-	@$(CC) $(CFLAGS) -o bin/laplace_basic2 laplace_basic2.c -lm
+	@$(CC) $(CFLAGS) $(PPX_DEFINE_FLAGS) -o bin/laplace_basic2 laplace_basic2.c -lm
 
 laplace_advanced: laplace_advanced.c
-	@$(CC) $(CFLAGS) -o bin/laplace_advanced laplace_advanced.c -lm
+	@$(CC) $(CFLAGS) $(PPX_DEFINE_FLAGS) -o bin/laplace_advanced laplace_advanced.c -lm
 
 # --- 実行ターゲット（コンパイル済みで実行） ---
 # Mac環境での OpenMPI 互換性フラグを使用
@@ -93,3 +101,7 @@ benchmark: release
 
 plot-benchmark:
 	@$(PYTHON) scripts/plot_laplace_speedup.py $(BENCHMARK_CSV) $(BENCHMARK_PLOT)
+
+# PPX 実行用のジョブを投入する。
+benchmark-ppx:
+	@sbatch run.sh
