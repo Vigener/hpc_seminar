@@ -1,7 +1,8 @@
 #!/bin/bash
 #SBATCH -J matvec_ppx
 #SBATCH -N 1
-#SBATCH -p ppx2-01
+#SBATCH -p ppx2
+#SBATCH -w ppx2-00
 #SBATCH -o out/matvec_%j.out
 #SBATCH -e out/matvec_%j.err
 #SBATCH -t 00:30:00
@@ -22,7 +23,7 @@ SOURCES=(
     matvec_loopswap_padding
 )
 REPEATS=3
-for source in "${SOURCEcodS[@]}"; do
+for source in "${SOURCES[@]}"; do
     for repeat_index in $(seq 1 "$REPEATS"); do
         echo "Running ${source}, repeat ${repeat_index}"
         # 実行結果を変数に格納し、元の標準出力の挙動も維持する
