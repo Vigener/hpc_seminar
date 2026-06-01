@@ -49,23 +49,23 @@ bin/matvec_loopswap_padding: matvec_loopswap_padding.c
 # ==============================================================================
 bin/matvec_original_ppx: matvec_original.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_original.c -o bin/matvec_original_ppx
+	gcc $(COMMON_FLAGS) -march=znver2 matvec_original.c -o bin/matvec_original
 
 bin/matvec_loopswap_ppx: matvec_loopswap.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap.c -o bin/matvec_loopswap_ppx
+	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap.c -o bin/matvec_loopswap
 
 bin/matvec_loopswap_unroll_ppx: matvec_loopswap_unroll.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll_ppx
+	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll
 
 bin/matvec_padding_ppx: matvec_padding.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_padding.c -o bin/matvec_padding_ppx
+	gcc $(COMMON_FLAGS) -march=znver2 matvec_padding.c -o bin/matvec_padding
 
 bin/matvec_loopswap_padding_ppx: matvec_loopswap_padding.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_padding.c -o bin/matvec_loopswap_padding_ppx
+	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_padding.c -o bin/matvec_loopswap_padding
 
 
 # ==============================================================================
