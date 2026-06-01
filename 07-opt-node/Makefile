@@ -14,10 +14,10 @@ COMMON_FLAGS = -O3 -Wall -Wextra -lm
 all: local ppx
 
 # `make local` でローカル（Mac/OrbStack）向けをまとめてビルド
-local: bin/matvec_original bin/matvec_loopswap bin/matvec_padding bin/matvec_loopswap_padding
+local: bin/matvec_original bin/matvec_loopswap bin/matvec_padding bin/matvec_loopswap_padding bin/matvec_loopswap_unroll
 
 # `make ppx` でPPX（計算ノード AMD Zen 2）向けをまとめてビルド
-ppx: bin/matvec_original_ppx bin/matvec_loopswap_ppx bin/matvec_padding_ppx bin/matvec_loopswap_padding_ppx
+ppx: bin/matvec_original_ppx bin/matvec_loopswap_ppx bin/matvec_padding_ppx bin/matvec_loopswap_padding_ppx bin/matvec_loopswap_unroll_ppx
 
 
 # ==============================================================================
@@ -30,6 +30,10 @@ bin/matvec_original: matvec_original.c
 bin/matvec_loopswap: matvec_loopswap.c
 	mkdir -p bin
 	gcc $(COMMON_FLAGS) -march=native matvec_loopswap.c -o bin/matvec_loopswap
+
+bin/matvec_loopswap_unroll: matvec_loopswap_unroll.c
+	mkdir -p bin
+	gcc $(COMMON_FLAGS) -march=native matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll
 
 bin/matvec_padding: matvec_padding.c
 	mkdir -p bin
@@ -50,6 +54,10 @@ bin/matvec_original_ppx: matvec_original.c
 bin/matvec_loopswap_ppx: matvec_loopswap.c
 	mkdir -p bin
 	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap.c -o bin/matvec_loopswap_ppx
+
+bin/matvec_loopswap_unroll_ppx: matvec_loopswap_unroll.c
+	mkdir -p bin
+	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll_ppx
 
 bin/matvec_padding_ppx: matvec_padding.c
 	mkdir -p bin

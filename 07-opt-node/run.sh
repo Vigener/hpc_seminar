@@ -21,6 +21,7 @@ SOURCES=(
     matvec_loopswap
     # matvec_padding
     matvec_loopswap_padding
+    matvec_loopswap_unroll
 )
 REPEATS=3
 for source in "${SOURCES[@]}"; do
@@ -29,10 +30,10 @@ for source in "${SOURCES[@]}"; do
         # 実行結果を変数に格納し、元の標準出力の挙動も維持する
         res=$(./bin/${source})
         echo "$res"
-        
+
         # Dummy: の行を除外して実行結果（時間）のみを抽出
         exec_time=$(echo "$res" | grep -v "Dummy:")
-        
+
         # CSVファイルに構造化して追記
         echo "${source},${repeat_index},${exec_time}" >> "$CSV_FILE"
     done
