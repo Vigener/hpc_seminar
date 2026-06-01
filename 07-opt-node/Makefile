@@ -25,23 +25,23 @@ ppx: bin/matvec_original_ppx bin/matvec_loopswap_ppx bin/matvec_padding_ppx bin/
 # ==============================================================================
 bin/matvec_original: matvec_original.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=native matvec_original.c -o bin/matvec_original
+	gcc $(COMMON_FLAGS) matvec_original.c -o bin/matvec_original
 
 bin/matvec_loopswap: matvec_loopswap.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=native matvec_loopswap.c -o bin/matvec_loopswap
+	gcc $(COMMON_FLAGS) matvec_loopswap.c -o bin/matvec_loopswap
 
 bin/matvec_loopswap_unroll: matvec_loopswap_unroll.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=native matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll
+	gcc $(COMMON_FLAGS) matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll
 
 bin/matvec_padding: matvec_padding.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=native matvec_padding.c -o bin/matvec_padding
+	gcc $(COMMON_FLAGS) matvec_padding.c -o bin/matvec_padding
 
 bin/matvec_loopswap_padding: matvec_loopswap_padding.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=native matvec_loopswap_padding.c -o bin/matvec_loopswap_padding
+	gcc $(COMMON_FLAGS) matvec_loopswap_padding.c -o bin/matvec_loopswap_padding
 
 
 # ==============================================================================

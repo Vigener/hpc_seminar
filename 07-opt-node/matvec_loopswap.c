@@ -1,4 +1,4 @@
-  #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h> // 時間計測のために追加
 
@@ -11,8 +11,8 @@ int main(void) {
 
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
-      a[i][j] = rand(); 
-      b[i][j] = rand(); 
+      a[i][j] = rand();
+      b[i][j] = rand();
       c[i][j] = rand();
     }
   }
@@ -33,8 +33,8 @@ int main(void) {
   clock_gettime(CLOCK_MONOTONIC, &end);
 
   // 秒とナノ秒を組み合わせて、かかった時間（秒）を計算
-  double elapsed_time = (end.tv_sec - start.tv_sec) + 
-                        (end.tv_nsec - start.tv_nsec) * 1e-9;
+  double elapsed_time =
+      (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) * 1e-9;
 
   // 実行時間のみを標準出力（後でスクリプト等で集計しやすいように）
   printf("%f\n", elapsed_time);
