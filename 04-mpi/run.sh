@@ -11,20 +11,20 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-cd "$SCRIPT_DIR"
 
 # PPX 上で MPI 実行環境を読み込む。
 module load openmpi
 
 # 出力先を用意する。
-mkdir -p out results
+OUT_DIR="$SCRIPT_DIR/out"
+mkdir -p "$OUT_DIR"
 
 # 実行対象とプロセス数はこのスクリプト内で固定する。
 PROCS="1 2 4 8 16 32 64 112"
 SOURCES=(laplace laplace_basic1 laplace_basic2 laplace_advanced)
 REPEATS=1
 
-RAWCSV="results/laplace_ppx_raw_$(date +%Y%m%d_%H%M%S).csv"
+RAWCSV="$OUT_DIR/laplace_ppx_raw_$(date +%Y%m%d_%H%M%S).csv"
 echo "source,nprocs,repeat_index,elapsed_sec,status" > "$RAWCSV"
 
 export OMP_NUM_THREADS=1
@@ -32,7 +32,7 @@ export OMP_PROC_BIND="${OMP_PROC_BIND:-close}"
 export OMP_PLACES="${OMP_PLACES:-cores}"
 
 for source in "${SOURCES[@]}"; do
-    bin="./bin/${source}"
+    bin="$SCRIPT_DIR/bin/${source}"
     if [[ ! -x "$bin" ]]; then
         echo "Missing executable: $bin" >&2
         echo "Build first with: make build" >&2
@@ -41,7 +41,7 @@ for source in "${SOURCES[@]}"; do
 done
 
 for source in "${SOURCES[@]}"; do
-    bin="./bin/${source}"
+    bin="$SCRIPT_DIR/bin/${source}"
     for np in $PROCS; do
         for rep in $(seq 1 "$REPEATS"); do
             echo "[RUN] source=${source} np=${np} repeat=${rep}" >&2
