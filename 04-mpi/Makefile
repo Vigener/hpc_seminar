@@ -128,3 +128,4 @@ plot-iter:
 	@echo "  - out/laplace_time_per_iter.png"
 	@echo "  - out/laplace_time_per_iter_zoom.png"
 	@echo "  - out/laplace_time_relative.png"
+	@echo "  - out/laplace_time_relative_zoom.png"
