@@ -1,4 +1,4 @@
-.PHONY: build build-ppx build-ppx-4096 benchmark-ppx release debug run run-basic clean
+.PHONY: build build-ppx build-ppx-4096 benchmark-ppx release debug run run-basic clean plot-benchmark plot-iter
 
 PYTHON ?= python3
 BENCHMARK_SIZES ?= 128 256 512 1024
@@ -110,3 +110,21 @@ plot-benchmark:
 # PPX 実行用のジョブを投入する。
 benchmark-ppx:
 	@sbatch run.sh
+
+# --- 追加: 1反復あたりの実行時間のグラフ生成 ---
+plot-iter:
+	@echo "最新のCSVファイルを検索してグラフを生成します..."
+	@LATEST_CSV=$$(ls -t out/laplace_ppx_raw_*.csv | head -n 1); \
+	if [ -z "$$LATEST_CSV" ]; then \
+		echo "エラー: CSVファイルが見つかりません。"; exit 1; \
+	fi; \
+	echo "使用するデータ: $$LATEST_CSV"; \
+	uv run scripts/plot_ppx_time_per_iter.py \
+		--input "$$LATEST_CSV" \
+		--summary-output out/laplace_summary_iter.csv \
+		--figure-output out/laplace_time_per_iter.png \
+		--relative-figure-output out/laplace_time_relative.png
+	@echo "グラフの生成が完了しました:"
+	@echo "  - out/laplace_time_per_iter.png"
+	@echo "  - out/laplace_time_per_iter_zoom.png"
+	@echo "  - out/laplace_time_relative.png"
