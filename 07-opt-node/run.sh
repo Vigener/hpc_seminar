@@ -16,14 +16,28 @@ mkdir -p out
 CSV_FILE="out/matvec_ppx_$(date +%Y%m%d_%H%M%S).csv"
 echo "source,repeat,time" > "$CSV_FILE"
 
+# 実行するバイナリ名のリスト
 SOURCES=(
     matvec_original
     matvec_loopswap
     # matvec_padding
     matvec_loopswap_padding
     matvec_loopswap_unroll
+    # --- ブロッキング検証群 ---
+    matvec_blocking_1_8_8
+    matvec_blocking_4_4_4
+    matvec_blocking_8_8_8
+    matvec_blocking_16_16_16
+    matvec_blocking_32_32_32
+    matvec_blocking_48_48_48
+    matvec_blocking_40_8_8
+    matvec_blocking_8_8_40
+    matvec_blocking_64_64_64
+    matvec_blocking_128_128_128
 )
+
 REPEATS=3
+
 for source in "${SOURCES[@]}"; do
     for repeat_index in $(seq 1 "$REPEATS"); do
         echo "Running ${source}, repeat ${repeat_index}"
