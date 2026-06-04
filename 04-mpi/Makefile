@@ -1,4 +1,4 @@
-.PHONY: build build-ppx benchmark-ppx release debug run run-basic clean
+.PHONY: build build-ppx build-ppx-4096 benchmark-ppx release debug run run-basic clean
 
 PYTHON ?= python3
 BENCHMARK_SIZES ?= 128 256 512 1024
@@ -17,7 +17,7 @@ CFLAGS_RELEASE := $(CFLAGS_BASE) -O3
 # PPX で 112 プロセスまで回すため、既定のビルドサイズは 896 にする。
 PPX_XSIZE ?= 896
 PPX_NITER ?= 1000
-PPX_DEFINE_FLAGS := -DXSIZE=$(PPX_XSIZE) -DYSIZE=$(PPX_XSIZE) -DNITER=$(PPX_NITER)
+PPX_DEFINE_FLAGS = -DXSIZE=$(PPX_XSIZE) -DYSIZE=$(PPX_XSIZE) -DNITER=$(PPX_NITER)
 
 # プロセス数（デフォルト: 4）
 NPROCS ?= 4
@@ -28,6 +28,11 @@ build: laplace laplace_basic1 laplace_basic2 laplace_advanced
 
 # PPX 用の実行バイナリは通常の build で揃う。
 build-ppx: build
+
+# 【新規追加】問題サイズを 4096、反復回数を 1000 に固定して最高レベル最適化でビルドするターゲット
+build-ppx-4096: PPX_XSIZE := 4096
+build-ppx-4096: PPX_NITER := 1000
+build-ppx-4096: release build
 
 release: CFLAGS := $(CFLAGS_RELEASE)
 release: laplace laplace_basic1 laplace_basic2 laplace_advanced
