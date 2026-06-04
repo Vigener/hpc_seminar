@@ -22,7 +22,7 @@ SOURCES=(laplace laplace_basic1 laplace_basic2 laplace_advanced)
 REPEATS=1
 
 RAWCSV="out/laplace_ppx_raw_$(date +%Y%m%d_%H%M%S).csv"
-echo "source,nprocs,repeat_index,elapsed_sec,status" > "$RAWCSV"
+echo "source,nprocs,repeat_index,elapsed_sec,time_per_iter,status" > "$RAWCSV"
 
 export OMP_NUM_THREADS=1
 export OMP_PROC_BIND="${OMP_PROC_BIND:-close}"
@@ -62,9 +62,15 @@ for source in "${SOURCES[@]}"; do
                 echo "[ERROR] source=${source} np=${np} repeat=${rep}: could not parse time" >&2
                 exit 1
             fi
+            time_per_iter=$(printf '%s\n' "$run_output" | awk -F'= *' '/^time_per_iter[[:space:]]*=/{print $2; exit}' | awk '{print $1}')
+            if [[ -z "$time_per_iter" ]]; then
+                echo "${source},${np},${rep},${elapsed_sec},,error" >> "$RAWCSV"
+                echo "[ERROR] source=${source} np=${np} repeat=${rep}: could not parse time_per_iter" >&2
+                exit 1
+            fi
 
-            echo "${source},${np},${rep},${elapsed_sec},ok" >> "$RAWCSV"
-            echo "[OK] source=${source} np=${np} repeat=${rep} time=${elapsed_sec}s" >&2
+            echo "${source},${np},${rep},${elapsed_sec},${time_per_iter},ok" >> "$RAWCSV"
+            echo "[OK] source=${source} np=${np} repeat=${rep} time=${elapsed_sec}s time_per_iter=${time_per_iter}s" >&2
         done
     done
 done

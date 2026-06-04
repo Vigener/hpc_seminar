@@ -204,6 +204,7 @@ int main(int argc, char *argv[]) {
 
     if (myid == 0) {
         printf("time = %g\n", time2 - time1);
+        printf("time_per_iter = %g\n", (time2 - time1) / NITER);
     }
 
     /* 動的に確保したメモリを解放 */
