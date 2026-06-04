@@ -1,18 +1,48 @@
-このリポジトリで作業するときの基本方針。
+# GitHub Copilot Instructions for HPC Project
 
-- Cコードは PPX 上で実行する前提で扱う。
-- PPX では `sbatch` でジョブスクリプトを投げて実行する。
-- ジョブスクリプトはコメントを付け、変数や関数は増やしすぎず、愚直で読みやすい書き方にする。
-- 実験ジョブスクリプトの出力先は `out/` に統一する。実行結果の CSV やログ、画像などの実験成果物はすべて `out/` に置く。
-- バイナリの出力先は `bin/` に統一する。`./bin/...` もしくは `"$SCRIPT_DIR/bin/..."` のように参照する。
-- ジョブスクリプトは、必要に応じてスクリプト位置から絶対パスを組み立てて実行し、`cd` に依存しない形を優先する。
-- `out/` ディレクトリは、PPX の `.sh` 側で `mkdir -p out` してから使ってよい。CSV の出力先は `RAWCSV` などの変数で明示し、`./bin/... > "$RAWCSV"` のように直接書く。
-- PPX 側の実行では、共有ファイルシステム上の既存バイナリを使う前提を優先し、不要なビルド手順は入れない。
-- Python コードは PPX ではなく、このコンテナ上で実行する。
-- 実行結果は Python で扱いやすい CSV 形式で出力する。
-- 可能なら C コードの時点で、CSV の列名や内容を整理しておく。
-- `.c` と `.sh` はプロジェクトディレクトリ直下に置く。
-- Python コードは `scripts/` に置く。
-- コンパイル先は `bin/`、実行結果や画像などの出力は `out/` に置く。
-- コンパイルと Python 実行は、各ディレクトリごとの `Makefile` で簡潔に起動できるようにする。
-- 既存の構成や命名がある場合は、それを優先して揃える。
+## 1. System Architecture & Development Flow
+
+You are an expert AI assistant helping an HPC (High-Performance Computing) developer.
+The project uses a hybrid engineering workflow across three environments:
+
+- **Host OS (macOS / ARM)**: Used for code editing, Python runtime, and generating graphics/plots.
+- **Local Container (Ubuntu via OrbStack)**: Used strictly for C/C++ compiler checks (syntax validation) and lightweight execution sanity tests.
+- **Production (PPX Cluster / Linux x86_64)**: Used for actual heavy performance evaluations.
+
+## 2. Environment-Specific Execution Rules
+
+### C/C++ Code & Job Scripts (PPX Target)
+
+- **DO NOT** attempt to compile or execute C/C++ binaries directly on the host macOS.
+- When compilation or testing commands are requested, **ALWAYS** suggest running them inside the local Docker/OrbStack container terminal (assume the project root is mounted to `/workspace`).
+- Treat C/C++ execution as targeted for the PPX cluster using the Slurm workload manager via `sbatch`.
+- When modifying or writing PPX job scripts, make them straightforward, explicit, and readable. Keep functions and variables minimal, and include helpful comments.
+- Prefer absolute path building derived from the script's directory location over relying on explicit `cd` state changes.
+- Assume existing pre-compiled binaries on the shared filesystem are prioritized; do not add unnecessary build overhead into job scripts.
+
+### Python & Data Plotting (Host macOS via `uv`)
+
+- Python runtime, virtual environments (`.venv`), and dependencies are managed **strictly via `uv`** on the local host macOS. (Mise is used only to install `uv`, not Python itself).
+- **DO NOT** execute Python scripts on the PPX production nodes or inside the local container unless explicitly asked.
+- You **MAY** suggest or automatically trigger host-level Python commands (always using the project's `.venv/bin/python`) to process results or render graphs.
+- When generating plots, ensure dependencies like `matplotlib` or `pandas` are managed via `uv` (e.g., referenced via `uv.lock` or `pyproject.toml`).
+
+## 3. Directory Structure & Artifact Management
+
+Follow these standardized structural rules strictly for all file placements and references:
+
+- **Source Files**: Place all `.c` (or `.cpp`) and `.sh` (job scripts) directly in the project root directory.
+- **Python Scripts**: Place all Python code inside the `scripts/` directory.
+- **Binaries**: Standardize all compiled binary outputs into the `bin/` directory. Reference them via `./bin/...` or `"$SCRIPT_DIR/bin/..."`.
+- **Artifacts (Data & Plots)**: Standardize all experimental outputs (raw CSVs, logs, images, and plots) into the `out/` directory.
+- **CSV Formatting**: Output all data from C/C++ in a clean, tabular CSV layout optimized for Python parsing. Ensure column names and structures are streamlined within the C layer where possible.
+- **Directory Creation**: Job scripts on the PPX side may safely include `mkdir -p out` before execution. Explicitly assign CSV paths to variables (e.g., `RAWCSV`) and stream output directly (e.g., `./bin/... > "$RAWCSV"`).
+
+## 4. Automation via Makefiles
+
+- Every compilation task or script execution must be easily triggered using a clean, minimal `Makefile` configured for the respective directory or workflow.
+- Ensure tasks like compiling inside the container or plotting via the host's Python environment are clearly decoupled into appropriate `make` targets for perfect reproducibility.
+
+## 5. Coding Standards & Consistency
+
+- **ALWAYS** prioritize maintaining consistency with the existing architecture, file layout, and naming conventions present in the repository.
