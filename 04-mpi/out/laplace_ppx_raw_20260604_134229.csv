@@ -1,0 +1,9 @@
+source,nprocs,repeat_index,elapsed_sec,time_per_iter,status
+laplace,1,1,57.5671,0.0575671,ok
+laplace,2,1,30.9094,0.0309094,ok
+laplace,4,1,18.8145,0.0188145,ok
+laplace,8,1,15.0536,0.0150536,ok
+laplace,16,1,13.2795,0.0132795,ok
+laplace,32,1,6.7288,0.0067288,ok
+laplace,64,1,3.45935,0.00345935,ok
+laplace,112,1,,error
