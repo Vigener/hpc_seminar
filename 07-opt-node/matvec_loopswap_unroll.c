@@ -2,7 +2,10 @@
 #include <stdlib.h>
 #include <time.h>
 
+// 外から指定（-DN=2000など）がなければ、デフォルトで1000にする
+#ifndef N
 #define N 1000
+#endif
 
 int main(void) {
   static double a[N][N], b[N][N], c[N][N];

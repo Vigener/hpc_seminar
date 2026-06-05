@@ -2,95 +2,100 @@
 # コンパイル設定（共通フラグのみ変数化）
 # ==============================================================================
 CC = gcc
-# 後から全ターゲットに共通して追加・変更したいフラグはここに書きます
 COMMON_FLAGS = -O3 -Wall -Wextra -lm
 
-# ブロッキング検証用のターゲット一覧（変数で管理してスッキリさせる）
-BLOCK_BINS = bin/matvec_blocking_1_8_8 \
-             bin/matvec_blocking_4_4_4 \
-             bin/matvec_blocking_8_8_8 \
-             bin/matvec_blocking_16_16_16 \
-             bin/matvec_blocking_32_32_32 \
-			 bin/matvec_blocking_48_48_48 \
-             bin/matvec_blocking_40_8_8 \
-             bin/matvec_blocking_8_8_40 \
-             bin/matvec_blocking_64_64_64 \
-             bin/matvec_blocking_128_128_128
+# ------------------------------------------------------------------------------
+# 評価対象の手法・サイズの定義
+# ------------------------------------------------------------------------------
+BASE_NAMES  = original loopswap padding loopswap_padding loopswap_unroll
+BLOCK_SIZES = 1_8_8 4_4_4 8_8_8 16_16_16 32_32_32 48_48_48 40_8_8 8_8_40 64_64_64 128_128_128
 
-BLOCK_BINS_PPX = $(BLOCK_BINS:%=%_ppx)
+# --- N=1000 用のターゲット一覧自動生成 ---
+BASE_N1000  = $(addprefix bin/matvec_, $(addsuffix _n1000, $(BASE_NAMES)))
+BLOCK_N1000 = $(addprefix bin/matvec_blocking_, $(addsuffix _n1000, $(BLOCK_SIZES)))
+PPX_BASE_N1000  = $(BASE_N1000:%=%_ppx)
+PPX_BLOCK_N1000 = $(BLOCK_N1000:%=%_ppx)
+
+# --- N=2000 用のターゲット一覧自動生成 ---
+BASE_N2000  = $(addprefix bin/matvec_, $(addsuffix _n2000, $(BASE_NAMES)))
+BLOCK_N2000 = $(addprefix bin/matvec_blocking_, $(addsuffix _n2000, $(BLOCK_SIZES)))
+PPX_BASE_N2000  = $(BASE_N2000:%=%_ppx)
+PPX_BLOCK_N2000 = $(BLOCK_N2000:%=%_ppx)
 
 # ==============================================================================
 # ターゲット定義（make コマンドの入り口）
 # ==============================================================================
-.PHONY: all local ppx clean
+.PHONY: all local_n1000 local_n2000 ppx_n1000 ppx_n2000 clean
 
-# `make` または `make all` でローカル用・PPX用をすべてビルド
+# 全ての組み合わせ（計60バイナリ）を一括ビルドする場合
 all: local ppx
 
-# `make local` でローカル（Mac/OrbStack）向けをまとめてビルド
-local: bin/matvec_original bin/matvec_loopswap bin/matvec_padding bin/matvec_loopswap_padding bin/matvec_loopswap_unroll $(BLOCK_BINS)
+# 大元ターゲット（local と ppx）を定義
+local: local_n1000 local_n2000
+ppx: ppx_n1000 ppx_n2000
 
-# `make ppx` でPPX（計算ノード AMD Zen 2）向けをまとめてビルド
-ppx: bin/matvec_original_ppx bin/matvec_loopswap_ppx bin/matvec_padding_ppx bin/matvec_loopswap_padding_ppx bin/matvec_loopswap_unroll_ppx $(BLOCK_BINS_PPX)
-
-
-# ==============================================================================
-# 1. ローカル環境向け（Mac / OrbStack Ubuntu）のビルドコマンド
-# ==============================================================================
-bin/matvec_original: matvec_original.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) matvec_original.c -o bin/matvec_original
-
-bin/matvec_loopswap: matvec_loopswap.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) matvec_loopswap.c -o bin/matvec_loopswap
-
-bin/matvec_loopswap_unroll: matvec_loopswap_unroll.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll
-
-bin/matvec_padding: matvec_padding.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) matvec_padding.c -o bin/matvec_padding
-
-bin/matvec_loopswap_padding: matvec_loopswap_padding.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) matvec_loopswap_padding.c -o bin/matvec_loopswap_padding
-
-# ブロッキング検証用のパターンルール（% に 1_8_8 などが入る）
-bin/matvec_blocking_%: matvec_blocking_%.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) $< -o $@
+# 各大元ターゲットごとに細分化
+local_n1000: $(BASE_N1000) $(BLOCK_N1000)
+local_n2000: $(BASE_N2000) $(BLOCK_N2000)
+ppx_n1000:   $(PPX_BASE_N1000) $(PPX_BLOCK_N1000)
+ppx_n2000:   $(PPX_BASE_N2000) $(PPX_BLOCK_N2000)
 
 
 # ==============================================================================
-# 2. PPX環境向け（計算ノード AMD Zen 2）のビルドコマンド
+# ビルド物理ルール（パターンルールによる全自動マッピング）
 # ==============================================================================
-bin/matvec_original_ppx: matvec_original.c
-	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_original.c -o bin/matvec_original
 
-bin/matvec_loopswap_ppx: matvec_loopswap.c
+# --- 1. local_n1000 (汎用最適化, N=1000) ---
+bin/matvec_%_n1000: matvec_%.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap.c -o bin/matvec_loopswap
+	$(CC) $(COMMON_FLAGS) -DN=1000 $< -o $@
 
-bin/matvec_loopswap_unroll_ppx: matvec_loopswap_unroll.c
+bin/matvec_blocking_%_n1000: matvec_blocking.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_unroll.c -o bin/matvec_loopswap_unroll
+	$(CC) $(COMMON_FLAGS) -DN=1000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) \
+		-DB_J=$(word 2,$(subst _, ,$*)) \
+		-DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
 
-bin/matvec_padding_ppx: matvec_padding.c
+# --- 2. local_n2000 (汎用最適化, N=2000) ---
+bin/matvec_%_n2000: matvec_%.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_padding.c -o bin/matvec_padding
+	$(CC) $(COMMON_FLAGS) -DN=2000 $< -o $@
 
-bin/matvec_loopswap_padding_ppx: matvec_loopswap_padding.c
+bin/matvec_blocking_%_n2000: matvec_blocking.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 matvec_loopswap_padding.c -o bin/matvec_loopswap_padding
+	$(CC) $(COMMON_FLAGS) -DN=2000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) \
+		-DB_J=$(word 2,$(subst _, ,$*)) \
+		-DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
 
-# ブロッキング検証用のパターンルール（PPX用）
-# 実行ファイル名は bin/matvec_blocking_XXX のまま生成する（元の仕様を維持）
-bin/matvec_blocking_%_ppx: matvec_blocking_%.c
+# --- 3. ppx_n1000 (AMD Zen 2 特化, N=1000) ---
+bin/matvec_%_n1000_ppx: matvec_%.c
 	mkdir -p bin
-	gcc $(COMMON_FLAGS) -march=znver2 $< -o bin/matvec_blocking_$*
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=1000 $< -o $@
+
+bin/matvec_blocking_%_n1000_ppx: matvec_blocking.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=1000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) \
+		-DB_J=$(word 2,$(subst _, ,$*)) \
+		-DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
+
+# --- 4. ppx_n2000 (AMD Zen 2 特化, N=2000) ---
+bin/matvec_%_n2000_ppx: matvec_%.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=2000 $< -o $@
+
+bin/matvec_blocking_%_n2000_ppx: matvec_blocking.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=2000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) \
+		-DB_J=$(word 2,$(subst _, ,$*)) \
+		-DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
 
 
 # ==============================================================================

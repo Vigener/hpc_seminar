@@ -2,16 +2,26 @@
 #include <stdlib.h>
 #include <time.h>
 
+// 外から指定（-DN=2000など）がなければ、デフォルトで1000にする
+#ifndef N
 #define N 1000
+#endif
 
-#define B_I 64
-#define B_J 64
-#define B_K 64
+// 各ブロックサイズも外から指定がなければ、デフォルトで32にする
+#ifndef B_I
+#define B_I 32
+#endif
+#ifndef B_J
+#define B_J 32
+#endif
+#ifndef B_K
+#define B_K 32
+#endif
 
 int main(void) {
   static double a[N][N], b[N][N], c[N][N];
   int i, j, k;
-  int ib, jb, kb; // ブロックの基準点を動かすための変数
+  int ib, jb, kb;
   struct timespec start, end;
 
   // 初期化ループ
@@ -26,17 +36,15 @@ int main(void) {
   // ==== 計測開始 ====
   clock_gettime(CLOCK_MONOTONIC, &start);
 
-  // 外側の3重ループで、ブロックの左上の座標 (ib, jb, kb) をスライドさせる
+  // ブロッキング単体 (i -> j -> k 順)
   for (ib = 0; ib < N; ib += B_I) {
     for (jb = 0; jb < N; jb += B_J) {
       for (kb = 0; kb < N; kb += B_K) {
 
-        // N=1000がブロックサイズで割り切れない場合の配列外参照を防ぐ安全処理
         int i_max = (ib + B_I < N) ? ib + B_I : N;
         int j_max = (jb + B_J < N) ? jb + B_J : N;
         int k_max = (kb + B_K < N) ? kb + B_K : N;
 
-        // ブロック内部の計算（matvec_original.c と全く同じ i -> j -> k 順）
         for (i = ib; i < i_max; i++) {
           for (j = jb; j < j_max; j++) {
             for (k = kb; k < k_max; k++) {
