@@ -1,0 +1,13 @@
+source,repeat,time
+matvec_original,1,0.671852
+matvec_original,2,0.600990
+matvec_original,3,0.600451
+matvec_loopswap,1,0.249214
+matvec_loopswap,2,0.249838
+matvec_loopswap,3,0.249584
+matvec_loopswap_padding,1,0.256827
+matvec_loopswap_padding,2,0.257257
+matvec_loopswap_padding,3,0.256934
+matvec_loopswap_unroll,1,0.442121
+matvec_loopswap_unroll,2,0.441429
+matvec_loopswap_unroll,3,0.441188
