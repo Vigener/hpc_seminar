@@ -27,7 +27,7 @@
 #endif
 #define PI 3.1415927
 #ifndef NITER
-#define NITER 10000
+#define NITER 10
 #endif
 
 // グローバル変数を静的配列からポインタに変更

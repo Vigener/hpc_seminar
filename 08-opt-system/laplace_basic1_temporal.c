@@ -27,7 +27,7 @@
 #endif
 #define PI 3.1415927
 #ifndef NITER
-#define NITER 10000
+#define NITER 10
 #endif
 
 // 配列のサイズを +4 (左右に2つずつのゴーストセル) 確保するため、ポインタで管理
