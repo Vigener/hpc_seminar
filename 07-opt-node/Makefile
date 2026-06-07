@@ -13,14 +13,18 @@ BLOCK_SIZES = 1_8_8 4_4_4 8_8_8 16_16_16 32_32_32 48_48_48 40_8_8 8_8_40 64_64_6
 # --- N=1000 用のターゲット一覧自動生成 ---
 BASE_N1000  = $(addprefix bin/matvec_, $(addsuffix _n1000, $(BASE_NAMES)))
 BLOCK_N1000 = $(addprefix bin/matvec_blocking_, $(addsuffix _n1000, $(BLOCK_SIZES)))
+LOOPBLOCK_N1000 = $(addprefix bin/matvec_loopswap_blocking_, $(addsuffix _n1000, $(BLOCK_SIZES))) # 追加
 PPX_BASE_N1000  = $(BASE_N1000:%=%_ppx)
 PPX_BLOCK_N1000 = $(BLOCK_N1000:%=%_ppx)
+PPX_LOOPBLOCK_N1000 = $(LOOPBLOCK_N1000:%=%_ppx) # 追加
 
 # --- N=2000 用のターゲット一覧自動生成 ---
 BASE_N2000  = $(addprefix bin/matvec_, $(addsuffix _n2000, $(BASE_NAMES)))
 BLOCK_N2000 = $(addprefix bin/matvec_blocking_, $(addsuffix _n2000, $(BLOCK_SIZES)))
+LOOPBLOCK_N2000 = $(addprefix bin/matvec_loopswap_blocking_, $(addsuffix _n2000, $(BLOCK_SIZES))) # 追加
 PPX_BASE_N2000  = $(BASE_N2000:%=%_ppx)
 PPX_BLOCK_N2000 = $(BLOCK_N2000:%=%_ppx)
+PPX_LOOPBLOCK_N2000 = $(LOOPBLOCK_N2000:%=%_ppx) # 追加
 
 # ==============================================================================
 # ターゲット定義（make コマンドの入り口）
@@ -34,11 +38,11 @@ all: local ppx
 local: local_n1000 local_n2000
 ppx: ppx_n1000 ppx_n2000
 
-# 各大元ターゲットごとに細分化
-local_n1000: $(BASE_N1000) $(BLOCK_N1000)
-local_n2000: $(BASE_N2000) $(BLOCK_N2000)
-ppx_n1000:   $(PPX_BASE_N1000) $(PPX_BLOCK_N1000)
-ppx_n2000:   $(PPX_BASE_N2000) $(PPX_BLOCK_N2000)
+# 各大元ターゲットごとに細分化（LOOPBLOCKを追加）
+local_n1000: $(BASE_N1000) $(BLOCK_N1000) $(LOOPBLOCK_N1000)
+local_n2000: $(BASE_N2000) $(BLOCK_N2000) $(LOOPBLOCK_N2000)
+ppx_n1000:   $(PPX_BASE_N1000) $(PPX_BLOCK_N1000) $(PPX_LOOPBLOCK_N1000)
+ppx_n2000:   $(PPX_BASE_N2000) $(PPX_BLOCK_N2000) $(PPX_LOOPBLOCK_N2000)
 
 
 # ==============================================================================
@@ -97,6 +101,39 @@ bin/matvec_blocking_%_n2000_ppx: matvec_blocking.c
 		-DB_K=$(word 3,$(subst _, ,$*)) \
 		$< -o $@
 
+# local_n1000 に追加
+bin/matvec_loopswap_blocking_%_n1000: matvec_loopswap_blocking.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -DN=1000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) -DB_J=$(word 2,$(subst _, ,$*)) -DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
+
+# local_n2000 に追加
+bin/matvec_loopswap_blocking_%_n2000: matvec_loopswap_blocking.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -DN=2000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) -DB_J=$(word 2,$(subst _, ,$*)) -DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
+
+# ppx_n1000 に追加
+bin/matvec_loopswap_blocking_%_n1000_ppx: matvec_loopswap_blocking.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=1000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) -DB_J=$(word 2,$(subst _, ,$*)) -DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
+
+# ppx_n2000 に追加
+bin/matvec_loopswap_blocking_%_n2000_ppx: matvec_loopswap_blocking.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=2000 \
+		-DB_I=$(word 1,$(subst _, ,$*)) -DB_J=$(word 2,$(subst _, ,$*)) -DB_K=$(word 3,$(subst _, ,$*)) \
+		$< -o $@
+
+# ==============================================================================
+# Pythonグラフ描画
+# ==============================================================================
+plot:
+	python scripts/plot_graph.py out/results_ppx_n2000_all.csv out/
 
 # ==============================================================================
 # クリーンアップ

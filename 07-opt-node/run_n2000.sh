@@ -5,7 +5,7 @@
 #SBATCH -w ppx2-00
 #SBATCH -o out/matvec_n2000_%j.out
 #SBATCH -e out/matvec_n2000_%j.err
-#SBATCH -t 00:30:00
+#SBATCH -t 01:00:00
 
 set -euo pipefail
 
@@ -32,7 +32,7 @@ for opt in "generic" "ppx_tuned"; do
     for base in "${BASE_NAMES[@]}"; do
         source_name="matvec_${base}_${N_SIZE}${suffix}"
         echo "Testing: ${source_name} (${opt})"
-        
+
         for r in $(seq 1 $REPEATS); do
             res=$(./bin/${source_name})
             exec_time=$(echo "$res" | grep -v "Dummy:")
@@ -44,7 +44,19 @@ for opt in "generic" "ppx_tuned"; do
     for size in "${BLOCK_SIZES[@]}"; do
         source_name="matvec_blocking_${size}_${N_SIZE}${suffix}"
         echo "Testing: ${source_name} (${opt})"
-        
+
+        for r in $(seq 1 $REPEATS); do
+            res=$(./bin/${source_name})
+            exec_time=$(echo "$res" | grep -v "Dummy:")
+            echo "${source_name},${N_SIZE},${opt},${r},${exec_time}" >> "$CSV_FILE"
+        done
+    done
+
+    # 3. ループ入れ替え＋ブロッキング手法の実行
+    for size in "${BLOCK_SIZES[@]}"; do
+        source_name="matvec_loopswap_blocking_${size}_${N_SIZE}${suffix}"
+        echo "Testing: ${source_name} (${opt})"
+
         for r in $(seq 1 $REPEATS); do
             res=$(./bin/${source_name})
             exec_time=$(echo "$res" | grep -v "Dummy:")
