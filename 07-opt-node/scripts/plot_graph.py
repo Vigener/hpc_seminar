@@ -283,6 +283,75 @@ def create_detail_graph(
     plt.close(fig)
 
 
+def print_markdown_tables(avg_data: dict[str, dict[str, float]]) -> None:
+    """分析用のMarkdownテーブルを標準出力にプリントする"""
+    print("\n" + "=" * 60)
+    print("【テキストベース解析用データ（Markdown Table）】")
+    print("=" * 60 + "\n")
+
+    # 1. 全体比較
+    print("### 1. 全体比較: N=2000 での最適化手法別実行時間\n")
+    print("| 手法 | 汎用 (-O3) [sec] | AMD特化 (-march=znver2) [sec] |")
+    print("| :--- | :---: | :---: |")
+
+    for source in MAIN_SOURCE_ORDER:
+        label = MAIN_SOURCE_LABELS[source].replace("\n", " ")
+        g_val = avg_data["generic"].get(source, 0)
+        p_val = avg_data["ppx_tuned"].get(source, 0)
+        print(f"| {label} | {g_val:.6f} | {p_val:.6f} |")
+
+    best_g_block = min(
+        BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
+    )
+    best_p_block = min(
+        BLOCKING_ORDER, key=lambda s: avg_data["ppx_tuned"].get(s, float("inf"))
+    )
+    val_g_block = avg_data["generic"].get(best_g_block, 0)
+    val_p_block = avg_data["ppx_tuned"].get(best_p_block, 0)
+    size_g_block = best_g_block.replace("matvec_blocking_", "").replace("_", "x")
+    size_p_block = best_p_block.replace("matvec_blocking_", "").replace("_", "x")
+    print(
+        f"| ブロッキング単体 (最速値) | {val_g_block:.6f} ({size_g_block}) | {val_p_block:.6f} ({size_p_block}) |"
+    )
+
+    best_g_hyb = min(
+        LOOPSWAP_BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
+    )
+    best_p_hyb = min(
+        LOOPSWAP_BLOCKING_ORDER,
+        key=lambda s: avg_data["ppx_tuned"].get(s, float("inf")),
+    )
+    val_g_hyb = avg_data["generic"].get(best_g_hyb, 0)
+    val_p_hyb = avg_data["ppx_tuned"].get(best_p_hyb, 0)
+    size_g_hyb = best_g_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+    size_p_hyb = best_p_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+    print(
+        f"| 入れ替え＋ブロック (最速値) | {val_g_hyb:.6f} ({size_g_hyb}) | {val_p_hyb:.6f} ({size_p_hyb}) |\n"
+    )
+
+    # 2. ブロッキング単体詳細
+    print("### 2. ブロッキング単体: サイズ別実行時間比較 (N=2000)\n")
+    print("| ブロックサイズ | 汎用 (-O3) [sec] | AMD特化 (-march=znver2) [sec] |")
+    print("| :--- | :---: | :---: |")
+    for s in BLOCKING_ORDER:
+        label = s.replace("matvec_blocking_", "").replace("_", "x")
+        g_val = avg_data["generic"].get(s, 0)
+        p_val = avg_data["ppx_tuned"].get(s, 0)
+        print(f"| {label} | {g_val:.6f} | {p_val:.6f} |")
+    print("\n")
+
+    # 3. 入れ替え＋ブロッキング詳細
+    print("### 3. 入れ替え＋ブロッキング: サイズ別実行時間比較 (N=2000)\n")
+    print("| ブロックサイズ | 汎用 (-O3) [sec] | AMD特化 (-march=znver2) [sec] |")
+    print("| :--- | :---: | :---: |")
+    for s in LOOPSWAP_BLOCKING_ORDER:
+        label = s.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+        g_val = avg_data["generic"].get(s, 0)
+        p_val = avg_data["ppx_tuned"].get(s, 0)
+        print(f"| {label} | {g_val:.6f} | {p_val:.6f} |")
+    print("\n" + "=" * 60 + "\n")
+
+
 def main() -> None:
     args = parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -309,8 +378,11 @@ def main() -> None:
         timestamp,
     )
 
+    # Markdownテーブルの出力
+    print_markdown_tables(avg_data)
+
     print(
-        f"\n生成されたグラフは\n"
+        f"生成されたグラフは\n"
         f"  {args.out_dir / 'main_comparison_latest.png'} と \n"
         f"  {args.out_dir / 'blocking_comparison_latest.png'} と \n"
         f"  {args.out_dir / 'loopswap_blocking_comparison_latest.png'} \n"
