@@ -13,7 +13,7 @@ set -euo pipefail
 mkdir -p out
 
 # CSVヘッダー（n_size列を追加して、後で1000の結果と結合しやすくします）
-CSV_FILE="out/results_n2000_all.csv"
+CSV_FILE="out/results_n2000_all_$(date +%Y%m%d_%H%M%S).csv"
 echo "source,n_size,opt_type,repeat,time" > "$CSV_FILE"
 
 # 実験パラメータ
@@ -66,3 +66,8 @@ for opt in "generic" "ppx_tuned"; do
 done
 
 echo "Experiment complete. Results saved to ${CSV_FILE}"
+
+# 実行完了後、最新のCSVを "results_n2000_latest.csv" としてコピーしておく
+cp "$CSV_FILE" "out/results_n2000_latest.csv"
+
+echo "Experiment complete. Results saved to ${CSV_FILE} and copied to out/results_n2000_latest.csv"
