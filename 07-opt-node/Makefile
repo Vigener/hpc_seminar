@@ -133,7 +133,7 @@ bin/matvec_loopswap_blocking_%_n2000_ppx: matvec_loopswap_blocking.c
 # Pythonグラフ描画
 # ==============================================================================
 plot:
-	python scripts/plot_graph.py out/results_ppx_n2000_all.csv out/
+	python scripts/plot_graph.py out/results_n2000_latest.csv out/
 
 # ==============================================================================
 # クリーンアップ

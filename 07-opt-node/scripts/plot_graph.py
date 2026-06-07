@@ -4,12 +4,14 @@ from __future__ import annotations
 import argparse
 import csv
 from collections import defaultdict
+from datetime import datetime  # タイムスタンプ取得用に追加
 from pathlib import Path
 
 import japanize_matplotlib  # noqa: F401
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes  # 型ヒントのために正しくインポート
+from matplotlib.figure import Figure
 
 FONT_SIZE_TITLE = 20
 FONT_SIZE_AXIS_LABEL = 16
@@ -89,6 +91,26 @@ def load_and_average_times(input_file: Path) -> dict[str, dict[str, float]]:
     return avg_data
 
 
+def save_dual_figures(fig: Figure, base_output_file: Path, timestamp: str) -> None:
+    """タイムスタンプ専用フォルダとlatest版の2か所に画像を保存する"""
+    # タイムスタンプ用のサブディレクトリを作成（例: out/20260607_143000/）
+    timestamp_dir = base_output_file.parent / timestamp
+    timestamp_dir.mkdir(parents=True, exist_ok=True)
+
+    # 履歴用ファイルパス（例: out/20260607_143000/main_comparison.png）
+    timestamped_file = (
+        timestamp_dir / f"{base_output_file.stem}{base_output_file.suffix}"
+    )
+
+    # latest用ファイルパス（例: out/main_comparison_latest.png）
+    latest_file = base_output_file.with_name(
+        f"{base_output_file.stem}_latest{base_output_file.suffix}"
+    )
+
+    fig.savefig(timestamped_file, dpi=200, bbox_inches="tight")
+    fig.savefig(latest_file, dpi=200, bbox_inches="tight")
+
+
 def plot_grouped_bar(
     ax: Axes,
     labels: list[str],
@@ -152,7 +174,9 @@ def plot_grouped_bar(
         )
 
 
-def create_main_graph(avg_data: dict[str, dict[str, float]], output_file: Path) -> None:
+def create_main_graph(
+    avg_data: dict[str, dict[str, float]], output_file: Path, timestamp: str
+) -> None:
     labels = []
     generic_vals = []
     ppx_vals = []
@@ -223,7 +247,7 @@ def create_main_graph(avg_data: dict[str, dict[str, float]], output_file: Path) 
     )
 
     fig.tight_layout()
-    fig.savefig(output_file, dpi=200, bbox_inches="tight")
+    save_dual_figures(fig, output_file, timestamp)
     plt.close(fig)
 
 
@@ -232,6 +256,7 @@ def create_detail_graph(
     order_list: list[str],
     title: str,
     output_file: Path,
+    timestamp: str,
 ) -> None:
     # matvec_blocking_ もしくは matvec_loopswap_blocking_ のプレフィックスを消して 40x8x8 のように整形
     labels = [
@@ -254,7 +279,7 @@ def create_detail_graph(
     )
 
     fig.tight_layout()
-    fig.savefig(output_file, dpi=200, bbox_inches="tight")
+    save_dual_figures(fig, output_file, timestamp)
     plt.close(fig)
 
 
@@ -264,22 +289,34 @@ def main() -> None:
 
     avg_data = load_and_average_times(args.input_file)
 
+    # 実行時のタイムスタンプを取得
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     # 3つのグラフを生成
-    create_main_graph(avg_data, args.out_dir / "main_comparison.png")
+    create_main_graph(avg_data, args.out_dir / "main_comparison.png", timestamp)
     create_detail_graph(
         avg_data,
         BLOCKING_ORDER,
         "ブロッキング単体: サイズ別実行時間比較 (N=2000)",
         args.out_dir / "blocking_comparison.png",
+        timestamp,
     )
     create_detail_graph(
         avg_data,
         LOOPSWAP_BLOCKING_ORDER,
         "入れ替え＋ブロッキング: サイズ別実行時間比較 (N=2000)",
         args.out_dir / "loopswap_blocking_comparison.png",
+        timestamp,
     )
 
-    print(f"グラフを {args.out_dir} に出力しました。")
+    print(
+        f"\n生成されたグラフは\n"
+        f"  {args.out_dir / 'main_comparison_latest.png'} と \n"
+        f"  {args.out_dir / 'blocking_comparison_latest.png'} と \n"
+        f"  {args.out_dir / 'loopswap_blocking_comparison_latest.png'} \n"
+        f"として保存されています。\n"
+        f"（※履歴は {args.out_dir / timestamp}/ 内にも保存されました）\n"
+    )
 
 
 if __name__ == "__main__":
