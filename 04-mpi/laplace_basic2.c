@@ -42,9 +42,9 @@ void initialize() {
 
     /* 初期値を設定 (ローカルインデックスから2Dのグローバル座標を計算して代入) */
     for (x = 1; x <= xsize; x++) {
-        global_x = x + coords[0] * xsize; 
+        global_x = x + coords[0] * xsize;
         for (y = 1; y <= ysize; y++) {
-            global_y = y + coords[1] * ysize; 
+            global_y = y + coords[1] * ysize;
             u[x][y] = sin((global_x - 1.0) / XSIZE * PI) + cos((global_y - 1.0) / YSIZE * PI);
         }
     }
@@ -75,7 +75,7 @@ void lap_solve(MPI_Comm comm) {
     double t_sum;
     MPI_Request reqs[4];
     MPI_Status stats[4];
-    
+
     int left_x, right_x; // X方向の隣接プロセス
     int left_y, right_y; // Y方向の隣接プロセス
 
@@ -95,7 +95,7 @@ void lap_solve(MPI_Comm comm) {
                 uu[x][y] = u[x][y];
             }
         }
-        
+
         /* === X方向 (行: 連続データ) の通信 === */
         /* 受信: 自分の上下のゴーストセルへ */
         MPI_Irecv(&uu[0][1], ysize, MPI_DOUBLE, left_x, TAG_1, comm, &reqs[0]);
@@ -103,7 +103,7 @@ void lap_solve(MPI_Comm comm) {
         /* 送信: 自分の上下の計算領域端から */
         MPI_Send(&u[1][1], ysize, MPI_DOUBLE, left_x, TAG_2, comm);
         MPI_Send(&u[xsize][1], ysize, MPI_DOUBLE, right_x, TAG_1, comm);
-        
+
         MPI_Waitall(2, reqs, stats);
 
         /* === Y方向 (列: 非連続データ) の通信 === */
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
     /* 周期境界なしの2次元Cartesianコミュニケータを作成 */
     int periods[2] = {FALSE, FALSE};
     MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, FALSE, &comm2d);
-    
+
     /* 自分のプロセス座標を取得 */
     MPI_Cart_coords(comm2d, myid, 2, coords);
 

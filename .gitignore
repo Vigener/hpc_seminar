@@ -91,3 +91,4 @@ report*.pdf
 .Spotlight-V100
 .Trashes
 Thumbs.db
+.clangd
