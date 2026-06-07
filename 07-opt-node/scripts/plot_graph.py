@@ -6,7 +6,7 @@ import csv
 from collections import defaultdict
 from pathlib import Path
 
-import japanize_matplotlib
+import japanize_matplotlib  # noqa: F401
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes  # 型ヒントのために正しくインポート
@@ -28,7 +28,8 @@ MAIN_SOURCE_LABELS = {
     "matvec_loopswap": "ループ入れ替え",
     "matvec_loopswap_padding": "入れ替え＋パディング",
     "matvec_loopswap_unroll": "入れ替え＋アンロール",
-    "best_blocking": "ブロッキング (最速値)",
+    "best_blocking": "ブロッキング単体\n(最速値)",
+    "best_loopswap_blocking": "入れ替え＋ブロック\n(最速値)",
 }
 
 BLOCKING_ORDER = [
@@ -44,10 +45,23 @@ BLOCKING_ORDER = [
     "matvec_blocking_8_8_40",
 ]
 
+LOOPSWAP_BLOCKING_ORDER = [
+    "matvec_loopswap_blocking_1_8_8",
+    "matvec_loopswap_blocking_4_4_4",
+    "matvec_loopswap_blocking_8_8_8",
+    "matvec_loopswap_blocking_16_16_16",
+    "matvec_loopswap_blocking_32_32_32",
+    "matvec_loopswap_blocking_48_48_48",
+    "matvec_loopswap_blocking_64_64_64",
+    "matvec_loopswap_blocking_128_128_128",
+    "matvec_loopswap_blocking_40_8_8",
+    "matvec_loopswap_blocking_8_8_40",
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="MatVec PPX 実行結果から比較グラフを2種生成します。"
+        description="MatVec PPX 実行結果から比較グラフを3種生成します。"
     )
     parser.add_argument("input_file", type=Path, help="入力CSVファイルのパス")
     parser.add_argument("out_dir", type=Path, help="出力先ディレクトリのパス")
@@ -155,28 +169,48 @@ def create_main_graph(avg_data: dict[str, dict[str, float]], output_file: Path) 
         generic_texts.append(f"{g_val:.2f}s")
         ppx_texts.append(f"{p_val:.2f}s")
 
-    # 2. ブロッキングの最速値を探す
-    best_generic_block = min(
+    # 2. ブロッキング単体の最速値を探す
+    best_g_block = min(
         BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
     )
-    best_ppx_block = min(
+    best_p_block = min(
         BLOCKING_ORDER, key=lambda s: avg_data["ppx_tuned"].get(s, float("inf"))
     )
 
-    val_g = avg_data["generic"][best_generic_block]
-    val_p = avg_data["ppx_tuned"][best_ppx_block]
-
     labels.append(MAIN_SOURCE_LABELS["best_blocking"])
-    generic_vals.append(val_g)
-    ppx_vals.append(val_p)
+    generic_vals.append(avg_data["generic"].get(best_g_block, 0))
+    ppx_vals.append(avg_data["ppx_tuned"].get(best_p_block, 0))
 
-    # 最速だったサイズをテキストとしてバーの上に表示
-    size_g = best_generic_block.replace("matvec_blocking_", "").replace("_", "x")
-    size_p = best_ppx_block.replace("matvec_blocking_", "").replace("_", "x")
-    generic_texts.append(f"{val_g:.2f}s\n({size_g})")
-    ppx_texts.append(f"{val_p:.2f}s\n({size_p})")
+    size_g_block = best_g_block.replace("matvec_blocking_", "").replace("_", "x")
+    size_p_block = best_p_block.replace("matvec_blocking_", "").replace("_", "x")
+    generic_texts.append(
+        f"{avg_data['generic'].get(best_g_block, 0):.2f}s\n({size_g_block})"
+    )
+    ppx_texts.append(
+        f"{avg_data['ppx_tuned'].get(best_p_block, 0):.2f}s\n({size_p_block})"
+    )
 
-    fig, ax = plt.subplots(figsize=(12, 7))
+    # 3. 入れ替え＋ブロック（ハイブリッド版）の最速値を探す
+    best_g_hyb = min(
+        LOOPSWAP_BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
+    )
+    best_p_hyb = min(
+        LOOPSWAP_BLOCKING_ORDER,
+        key=lambda s: avg_data["ppx_tuned"].get(s, float("inf")),
+    )
+
+    labels.append(MAIN_SOURCE_LABELS["best_loopswap_blocking"])
+    generic_vals.append(avg_data["generic"].get(best_g_hyb, 0))
+    ppx_vals.append(avg_data["ppx_tuned"].get(best_p_hyb, 0))
+
+    size_g_hyb = best_g_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+    size_p_hyb = best_p_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+    generic_texts.append(
+        f"{avg_data['generic'].get(best_g_hyb, 0):.2f}s\n({size_g_hyb})"
+    )
+    ppx_texts.append(f"{avg_data['ppx_tuned'].get(best_p_hyb, 0):.2f}s\n({size_p_hyb})")
+
+    fig, ax = plt.subplots(figsize=(14, 7))
     plot_grouped_bar(
         ax,
         labels,
@@ -193,14 +227,21 @@ def create_main_graph(avg_data: dict[str, dict[str, float]], output_file: Path) 
     plt.close(fig)
 
 
-def create_blocking_graph(
-    avg_data: dict[str, dict[str, float]], output_file: Path
+def create_detail_graph(
+    avg_data: dict[str, dict[str, float]],
+    order_list: list[str],
+    title: str,
+    output_file: Path,
 ) -> None:
+    # matvec_blocking_ もしくは matvec_loopswap_blocking_ のプレフィックスを消して 40x8x8 のように整形
     labels = [
-        s.replace("matvec_blocking_", "").replace("_", "x") for s in BLOCKING_ORDER
+        s.replace("matvec_loopswap_blocking_", "")
+        .replace("matvec_blocking_", "")
+        .replace("_", "x")
+        for s in order_list
     ]
-    generic_vals = [avg_data["generic"].get(s, 0) for s in BLOCKING_ORDER]
-    ppx_vals = [avg_data["ppx_tuned"].get(s, 0) for s in BLOCKING_ORDER]
+    generic_vals = [avg_data["generic"].get(s, 0) for s in order_list]
+    ppx_vals = [avg_data["ppx_tuned"].get(s, 0) for s in order_list]
 
     fig, ax = plt.subplots(figsize=(14, 7))
     plot_grouped_bar(
@@ -208,7 +249,7 @@ def create_blocking_graph(
         labels,
         generic_vals,
         ppx_vals,
-        "ブロッキングサイズ別 実行時間比較 (N=2000)",
+        title,
         "実行時間 [sec]",
     )
 
@@ -223,9 +264,20 @@ def main() -> None:
 
     avg_data = load_and_average_times(args.input_file)
 
-    # 2つのグラフを生成
+    # 3つのグラフを生成
     create_main_graph(avg_data, args.out_dir / "main_comparison.png")
-    create_blocking_graph(avg_data, args.out_dir / "blocking_comparison.png")
+    create_detail_graph(
+        avg_data,
+        BLOCKING_ORDER,
+        "ブロッキング単体: サイズ別実行時間比較 (N=2000)",
+        args.out_dir / "blocking_comparison.png",
+    )
+    create_detail_graph(
+        avg_data,
+        LOOPSWAP_BLOCKING_ORDER,
+        "入れ替え＋ブロッキング: サイズ別実行時間比較 (N=2000)",
+        args.out_dir / "loopswap_blocking_comparison.png",
+    )
 
     print(f"グラフを {args.out_dir} に出力しました。")
 
