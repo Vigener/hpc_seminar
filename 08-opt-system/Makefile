@@ -35,7 +35,7 @@ laplace_basic1_temporal: laplace_basic1_temporal.c
 # --- クリーン ---
 clean:
 	rm -f bin/laplace_basic1 bin/laplace_basic1_temporal
-	rm -f trace*.log
+	rm -f out/trace*.log
 
 # PPX 実行用のジョブを投入する
 benchmark-ppx:
