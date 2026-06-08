@@ -6,7 +6,7 @@
 #SBATCH -w ppx2-[00-03]
 #SBATCH -o out/laplace_opt_%j.out
 #SBATCH -e out/laplace_opt_%j.err
-#SBATCH -t 00:30:00
+#SBATCH -t 00:45:00
 
 set -euo pipefail
 

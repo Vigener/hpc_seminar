@@ -12,7 +12,7 @@ LDFLAGS := -lm -ltlog
 
 # PPX 環境向けの問題サイズと反復回数
 PPX_XSIZE ?= 17920
-PPX_NITER ?= 500
+PPX_NITER ?= 100
 PPX_DEFINE_FLAGS = -DXSIZE=$(PPX_XSIZE) -DYSIZE=$(PPX_XSIZE) -DNITER=$(PPX_NITER)
 
 # --- ビルドターゲット ---
