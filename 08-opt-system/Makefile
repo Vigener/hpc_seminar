@@ -11,8 +11,8 @@ CFLAGS_RELEASE := $(CFLAGS_BASE) -O3
 LDFLAGS := -lm -ltlog
 
 # PPX 環境向けの問題サイズと反復回数
-PPX_XSIZE ?= 17920
-PPX_NITER ?= 100
+PPX_XSIZE ?= 4480
+PPX_NITER ?= 1000
 PPX_DEFINE_FLAGS = -DXSIZE=$(PPX_XSIZE) -DYSIZE=$(PPX_XSIZE) -DNITER=$(PPX_NITER)
 
 # --- ビルドターゲット ---
@@ -44,3 +44,9 @@ benchmark-ppx:
 # --- 実行ターゲット (ローカルでのプロファイル実行用) ---
 run-profile: release
 	@bash run.sh
+
+plot:
+	uv run scripts/plot_temporal_blocking.py \
+    --input out/laplace_opt_raw_latest.csv \
+    --summary-output results/temporal_summary.csv \
+    --figure-output results/temporal_time.png
