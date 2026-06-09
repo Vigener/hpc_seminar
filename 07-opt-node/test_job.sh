@@ -7,13 +7,16 @@
 #SBATCH -e test_dgemm_%j.err
 #SBATCH -t 00:05:00
 
+# set -u は維持しますが、変数の展開方法を工夫します
 set -euo pipefail
 
 echo "========================================"
 echo " 1. ライブラリパスの手動設定"
 echo "========================================"
-# moduleコマンドを使わず、強引にパスを通す
+
+# ${LD_LIBRARY_PATH:-} という記述により、変数が未定義なら空文字として扱います
 export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib:${LD_LIBRARY_PATH:-}
+
 echo "LD_LIBRARY_PATH = $LD_LIBRARY_PATH"
 
 echo "========================================"
