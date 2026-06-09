@@ -13,7 +13,8 @@ set -euo pipefail
 # [確実な解決策] ライブラリパスを固定する
 # ====================================================
 # コンパイル・実行の両方で確実にこのディレクトリを参照させる
-export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+unset LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib
 
 # ====================================================
 # [重要] マルチスレッド暴走を防ぐ
