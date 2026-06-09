@@ -10,19 +10,19 @@
 set -euo pipefail
 
 # ====================================================
-# [変更] NVIDIA HPC SDK の環境をロードしてライブラリパスを自動解決する
+# [確実な解決策] ライブラリパスを固定する
 # ====================================================
-set +u
-module use /opt/nvidia/hpc_sdk/modulefiles  # ←★この1行を追加
-module load nvhpc/26.3
-set -u
+# コンパイル・実行の両方で確実にこのディレクトリを参照させる
+export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib:$LD_LIBRARY_PATH
 
 # ====================================================
-# [重要] BLASライブラリが勝手にマルチスレッドで暴走するのを防ぐ
+# [重要] マルチスレッド暴走を防ぐ
 # ====================================================
 export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
+
+# (以下、実行ループ等の処理は変更なし)
 
 # 出力先用意
 mkdir -p out

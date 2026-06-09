@@ -9,8 +9,8 @@
 #pragma push_macro("N")  // 現在の N の定義（1000など）を記憶
 #undef N                 // 一旦 N を無かったことにする
 
-// この状態（Nがただの文字に戻った状態）でヘッダを読み込む
-#include <cblas.h>
+// コンパイラがヘッダを見つけられない問題を防ぐため、絶対パスで読み込む
+#include "/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/include/cblas.h"
 
 // 読み込みが終わったら、退避しておいた N の定義を復元する
 #pragma pop_macro("N")
