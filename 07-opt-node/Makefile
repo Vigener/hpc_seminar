@@ -2,8 +2,13 @@
 # コンパイル設定（共通フラグのみ変数化）
 # ==============================================================================
 CC = gcc
-# OpenBLASをリンクするために -lopenblas を追加
-COMMON_FLAGS = -O3 -Wall -Wextra -lm -lopenblas
+COMMON_FLAGS = -O3 -Wall -Wextra -lm
+
+# ★追加: NVIDIA HPC SDK 内の BLAS を使うためのフラグ
+BLAS_FLAGS = -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/include \
+             -L/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib \
+             -Wl,-rpath,/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib \
+             -lblas
 
 # ------------------------------------------------------------------------------
 # 評価対象の手法・サイズの定義
@@ -51,6 +56,23 @@ ppx_n2000:   $(PPX_BASE_N2000) $(PPX_BLOCK_N2000) $(PPX_LOOPBLOCK_N2000)
 # ==============================================================================
 # ビルド物理ルール（パターンルールによる全自動マッピング）
 # ==============================================================================
+
+# --- DGEMM専用ルール (BLAS_FLAGSを結合) ---
+bin/matvec_dgemm_n1000: matvec_dgemm.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -DN=1000 $< -o $@ $(BLAS_FLAGS)
+
+bin/matvec_dgemm_n2000: matvec_dgemm.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -DN=2000 $< -o $@ $(BLAS_FLAGS)
+
+bin/matvec_dgemm_n1000_ppx: matvec_dgemm.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=1000 $< -o $@ $(BLAS_FLAGS)
+
+bin/matvec_dgemm_n2000_ppx: matvec_dgemm.c
+	mkdir -p bin
+	$(CC) $(COMMON_FLAGS) -march=znver2 -DN=2000 $< -o $@ $(BLAS_FLAGS)
 
 # --- 1. local_n1000 (汎用最適化, N=1000) ---
 bin/matvec_%_n1000: matvec_%.c
