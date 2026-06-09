@@ -17,6 +17,10 @@ LIB_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib
 echo "--- Check if header exists ---"
 ls -l "$HEADER_PATH/cblas.h" || echo "Header not found at $HEADER_PATH"
 
+echo "=== LD_LIBRARY_PATH ===" && echo $LD_LIBRARY_PATH
+echo "=== ライブラリの存在確認 ===" && ls /opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib/libblas* 2>&1
+ldd ./bin/test_dgemm 2>&1   # どのライブラリが未解決か確認
+
 echo "--- Compiling with Verbose mode ---"
 # -v をつけて、コンパイラがどこを探しているかを確認
 gcc -v -O3 test_dgemm.c -o test_dgemm_bin \
