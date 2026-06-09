@@ -23,6 +23,7 @@ MAIN_SOURCE_ORDER = [
     "matvec_loopswap",
     "matvec_loopswap_padding",
     "matvec_loopswap_unroll",
+    "matvec_dgemm",  # ★ここに追加
 ]
 
 MAIN_SOURCE_LABELS = {
@@ -30,6 +31,7 @@ MAIN_SOURCE_LABELS = {
     "matvec_loopswap": "ループ入れ替え",
     "matvec_loopswap_padding": "入れ替え＋パディング",
     "matvec_loopswap_unroll": "入れ替え＋アンロール",
+    "matvec_dgemm": "DGEMM (BLAS)",  # ★ここに追加
     "best_blocking": "ブロッキング単体\n(最速値)",
     "best_loopswap_blocking": "入れ替え＋ブロック\n(最速値)",
 }
@@ -45,6 +47,9 @@ BLOCKING_ORDER = [
     "matvec_blocking_128_128_128",
     "matvec_blocking_40_8_8",
     "matvec_blocking_8_8_40",
+    "matvec_blocking_32_128_16",  # ★ここに追加
+    "matvec_blocking_32_96_32",  # ★ここに追加
+    "matvec_blocking_16_256_8",  # ★ここに追加
 ]
 
 LOOPSWAP_BLOCKING_ORDER = [
@@ -58,6 +63,9 @@ LOOPSWAP_BLOCKING_ORDER = [
     "matvec_loopswap_blocking_128_128_128",
     "matvec_loopswap_blocking_40_8_8",
     "matvec_loopswap_blocking_8_8_40",
+    "matvec_loopswap_blocking_32_128_16",  # ★ここに追加
+    "matvec_loopswap_blocking_32_96_32",  # ★ここに追加
+    "matvec_loopswap_blocking_16_256_8",  # ★ここに追加
 ]
 
 

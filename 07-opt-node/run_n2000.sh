@@ -9,17 +9,25 @@
 
 set -euo pipefail
 
+# ====================================================
+# [重要] BLASライブラリが勝手にマルチスレッドで暴走するのを防ぐ
+# 必ず1コア（シングルスレッド）で実行させるための制約
+# ====================================================
+export OPENBLAS_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+
 # 出力先用意
 mkdir -p out
 
-# CSVヘッダー（n_size列を追加して、後で1000の結果と結合しやすくします）
+# CSVヘッダー
 CSV_FILE="out/results_n2000_all_$(date +%Y%m%d_%H%M%S).csv"
 echo "source,n_size,opt_type,repeat,time" > "$CSV_FILE"
 
-# 実験パラメータ
+# 実験パラメータ (dgemm と新しい非対称サイズを追加)
 N_SIZE="n2000"
-BASE_NAMES=(original loopswap padding loopswap_padding loopswap_unroll)
-BLOCK_SIZES=(1_8_8 4_4_4 8_8_8 16_16_16 32_32_32 48_48_48 40_8_8 8_8_40 64_64_64 128_128_128)
+BASE_NAMES=(original loopswap padding loopswap_padding loopswap_unroll dgemm)
+BLOCK_SIZES=(1_8_8 4_4_4 8_8_8 16_16_16 32_32_32 48_48_48 40_8_8 8_8_40 64_64_64 128_128_128 32_128_16 32_96_32 16_256_8)
 REPEATS=3
 
 # 実行ループ
@@ -64,8 +72,6 @@ for opt in "generic" "ppx_tuned"; do
         done
     done
 done
-
-echo "Experiment complete. Results saved to ${CSV_FILE}"
 
 # 実行完了後、最新のCSVを "results_n2000_latest.csv" としてコピーしておく
 cp "$CSV_FILE" "out/results_n2000_latest.csv"
