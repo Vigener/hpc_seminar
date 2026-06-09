@@ -4,11 +4,10 @@
 CC = gcc
 COMMON_FLAGS = -O3 -Wall -Wextra -lm
 
-# ★追加: NVIDIA HPC SDK 内の BLAS を使うためのフラグ
-BLAS_FLAGS = -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/include \
-             -L/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib \
-             -Wl,-rpath,/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib \
-             -lblas
+# ★変更: ローカルにコピーしたヘッダと静的ライブラリ(.a)を直接指定する
+BLAS_FLAGS = -I$(HOME)/work/apps/local/include \
+             $(HOME)/work/apps/local/lib/libblas_lp64.a \
+             -lm -lpthread -lgfortran
 
 # ------------------------------------------------------------------------------
 # 評価対象の手法・サイズの定義

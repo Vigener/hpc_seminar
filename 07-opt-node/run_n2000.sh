@@ -9,12 +9,7 @@
 
 set -euo pipefail
 
-# ====================================================
-# [確実な解決策] ライブラリパスを固定する
-# ====================================================
-# コンパイル・実行の両方で確実にこのディレクトリを参照させる
-unset LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib
+# ★LD_LIBRARY_PATHの小細工はもう不要なので完全削除！★
 
 # ====================================================
 # [重要] マルチスレッド暴走を防ぐ
@@ -23,7 +18,7 @@ export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-# (以下、実行ループ等の処理は変更なし)
+# (以下、実行ループ等)
 
 # 出力先用意
 mkdir -p out
