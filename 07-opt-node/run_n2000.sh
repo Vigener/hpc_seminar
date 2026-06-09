@@ -7,13 +7,20 @@
 #SBATCH -e out/matvec_n2000_%j.err
 #SBATCH -t 01:00:00
 
-set -euo pipefail
+# 1. set -u を一時的にオフにする（これが原因です）
+set +u
+set -e
+set -o pipefail
 
-# ====================================================
-# [確実な解決策] ライブラリパスを固定する
-# ====================================================
-# コンパイル・実行の両方で確実にこのディレクトリを参照させる
-export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib:$LD_LIBRARY_PATH
+# 2. LD_LIBRARY_PATH が空でもエラーにならないように設定
+if [ -z "${LD_LIBRARY_PATH:-}" ]; then
+    export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib
+else
+    export LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/compilers/lib:$LD_LIBRARY_PATH
+fi
+
+# 3. 再度 set -u を有効化
+set -u
 
 # ====================================================
 # [重要] マルチスレッド暴走を防ぐ
