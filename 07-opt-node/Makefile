@@ -4,10 +4,10 @@
 CC = gcc
 COMMON_FLAGS = -O3 -Wall -Wextra -lm
 
-# ★変更: ローカルにコピーしたヘッダと静的ライブラリ(.a)を直接指定する
+# ★変更: 自前ビルドした純度100%の libopenblas.a を指定する
 BLAS_FLAGS = -I$(HOME)/work/apps/local/include \
-             $(HOME)/work/apps/local/lib/libblas_lp64.a \
-             -lm -lpthread
+             $(HOME)/work/apps/local/lib/libopenblas.a \
+             -lm
 
 # ------------------------------------------------------------------------------
 # 評価対象の手法・サイズの定義
