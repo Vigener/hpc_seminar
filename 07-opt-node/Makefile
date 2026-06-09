@@ -13,7 +13,7 @@ BLAS_FLAGS = -I$(HOME)/work/apps/local/include \
 # 評価対象の手法・サイズの定義
 # ------------------------------------------------------------------------------
 # dgemm を追加
-BASE_NAMES  = original loopswap padding loopswap_padding loopswap_unroll
+BASE_NAMES  = original loopswap padding loopswap_padding loopswap_unroll dgemm
 # 非対称サイズ (32_128_16, 32_96_32, 16_256_8) を追加
 BLOCK_SIZES = 1_8_8 4_4_4 8_8_8 16_16_16 32_32_32 48_48_48 40_8_8 8_8_40 64_64_64 128_128_128 32_128_16 32_96_32 16_256_8
 
@@ -154,6 +154,9 @@ bin/matvec_loopswap_blocking_%_n2000_ppx: matvec_loopswap_blocking.c
 # ==============================================================================
 plot:
 	python scripts/plot_graph.py out/results_n2000_latest.csv out/
+
+plot_mac:
+	python scripts/plot_graph.py --suffix _mac out/results_n2000_latest_mac.csv out/
 
 # ==============================================================================
 # クリーンアップ

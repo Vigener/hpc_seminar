@@ -29,7 +29,7 @@ echo "source,n_size,opt_type,repeat,time" > "$CSV_FILE"
 
 # 実験パラメータ (dgemm と新しい非対称サイズを追加)
 N_SIZE="n2000"
-BASE_NAMES=(original loopswap padding loopswap_padding loopswap_unroll)
+BASE_NAMES=(original loopswap padding loopswap_padding loopswap_unroll dgemm)
 BLOCK_SIZES=(1_8_8 4_4_4 8_8_8 16_16_16 32_32_32 48_48_48 40_8_8 8_8_40 64_64_64 128_128_128 32_128_16 32_96_32 16_256_8)
 REPEATS=3
 
