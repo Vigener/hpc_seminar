@@ -7,7 +7,7 @@ COMMON_FLAGS = -O3 -Wall -Wextra -lm
 # ★変更: ローカルにコピーしたヘッダと静的ライブラリ(.a)を直接指定する
 BLAS_FLAGS = -I$(HOME)/work/apps/local/include \
              $(HOME)/work/apps/local/lib/libblas_lp64.a \
-             -lm -lpthread -lgfortran
+             -lm -lpthread
 
 # ------------------------------------------------------------------------------
 # 評価対象の手法・サイズの定義
