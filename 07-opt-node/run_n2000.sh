@@ -11,9 +11,9 @@ set -euo pipefail
 
 # ====================================================
 # [変更] NVIDIA HPC SDK の環境をロードしてライブラリパスを自動解決する
-# ※ module コマンドがエラーにならないよう、一時的に未定義変数チェック(set -u)を外す
 # ====================================================
 set +u
+module use /opt/nvidia/hpc_sdk/modulefiles  # ←★この1行を追加
 module load nvhpc/26.3
 set -u
 
