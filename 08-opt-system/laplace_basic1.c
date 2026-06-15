@@ -7,17 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* tlogのインクルード */
-#include "tlog.h"
-
-/* tlogイベントの定義（tlog.hに無い場合のフォールバック用） */
-#ifndef TLOG_EVENT_1_IN
-#define TLOG_EVENT_1_IN  1
-#define TLOG_EVENT_1_OUT 2
-#define TLOG_EVENT_2_IN  3
-#define TLOG_EVENT_2_OUT 4
-#endif
-
 /* square region */
 #ifndef XSIZE
 #define XSIZE 256
@@ -83,6 +72,12 @@ void lap_solve(MPI_Comm comm) {
     int down, up;
     int periods[1] = {FALSE};
 
+    /* 時間計測用の変数 */
+    double t_start, t_end;
+    double local_comm_time = 0.0;
+    double local_comp_time = 0.0;
+    double max_comm_time, max_comp_time;
+
     /*
      * Create one dimensional cartesian topology with
      * nonperiodical boundary
@@ -93,6 +88,11 @@ void lap_solve(MPI_Comm comm) {
     MPI_Cart_shift(comm1d, 0, 1, &down, &up);
 
     for (k = 0; k < NITER; k++) {
+        /* =========================================================
+         * 計算フェーズ (データコピー)
+         * ========================================================= */
+        t_start = MPI_Wtime();
+
         /* old <- new */
         for (x = 1; x <= xsize; x++) {
             for (y = 1; y < YSIZE + 1; y++) {
@@ -100,10 +100,13 @@ void lap_solve(MPI_Comm comm) {
             }
         }
 
+        t_end = MPI_Wtime();
+        local_comp_time += (t_end - t_start);
+
         /* =========================================================
-         * EVENT 1: 通信フェーズ
+         * 通信フェーズ
          * ========================================================= */
-        tlog_log(TLOG_EVENT_1_IN);
+        t_start = MPI_Wtime();
 
         /* recv from down (局所の左端ゴーストセル 0 へ受信) */
         if (down != MPI_PROC_NULL) {
@@ -132,12 +135,13 @@ void lap_solve(MPI_Comm comm) {
         MPI_Wait(&req1, &status1);
         MPI_Wait(&req2, &status2);
 
-        tlog_log(TLOG_EVENT_1_OUT);
+        t_end = MPI_Wtime();
+        local_comm_time += (t_end - t_start);
 
         /* =========================================================
-         * EVENT 2: 計算フェーズ
+         * 計算フェーズ
          * ========================================================= */
-        tlog_log(TLOG_EVENT_2_IN);
+        t_start = MPI_Wtime();
 
         /* update (局所インデックスを使用)*/
         for (x = 1; x <= xsize; x++) {
@@ -146,7 +150,19 @@ void lap_solve(MPI_Comm comm) {
             }
         }
 
-        tlog_log(TLOG_EVENT_2_OUT);
+        t_end = MPI_Wtime();
+        local_comp_time += (t_end - t_start);
+    }
+
+    /* 計測結果を全プロセスから収集し、最大の通信・計算時間を割り出す */
+    MPI_Reduce(&local_comm_time, &max_comm_time, 1, MPI_DOUBLE, MPI_MAX, 0, comm1d);
+    MPI_Reduce(&local_comp_time, &max_comp_time, 1, MPI_DOUBLE, MPI_MAX, 0, comm1d);
+
+    if (myid == 0) {
+        printf("--- Profiling Results ---\n");
+        printf("Max Communication Time = %g sec (%g sec/iter)\n", max_comm_time, max_comm_time / NITER);
+        printf("Max Computation Time   = %g sec (%g sec/iter)\n", max_comp_time, max_comp_time / NITER);
+        printf("-------------------------\n");
     }
 
     /* check sum */
@@ -168,8 +184,6 @@ void lap_solve(MPI_Comm comm) {
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
-
-    tlog_initialize(); /* tlog初期化 */
 
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
@@ -210,8 +224,6 @@ int main(int argc, char *argv[]) {
     // 動的に確保したメモリを解放
     free(u);
     free(uu);
-
-    tlog_finalize(); /* tlog出力 */
 
     MPI_Finalize();
     return (0);

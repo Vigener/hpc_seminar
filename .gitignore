@@ -92,3 +92,9 @@ report*.pdf
 .Trashes
 Thumbs.db
 .clangd
+
+# ========================================
+# For AI
+# ========================================
+GEMINI.md
+skills

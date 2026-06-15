@@ -5,10 +5,19 @@ CC := mpicc
 
 CFLAGS_BASE := -Wall
 CFLAGS_DEBUG := $(CFLAGS_BASE) -g -O0
-CFLAGS_RELEASE := $(CFLAGS_BASE) -O3
 
-# 数学ライブラリ(-lm)とtlogライブラリ(-ltlog)のリンクフラグ
-LDFLAGS := -lm -ltlog
+# PPX環境（x86_64）かローカル（ARM等）かでオプションを切り替える
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_M),x86_64)
+    ARCH_FLAGS := -march=znver2
+else
+    ARCH_FLAGS :=
+endif
+
+CFLAGS_RELEASE := $(CFLAGS_BASE) -O3 $(ARCH_FLAGS)
+
+# 数学ライブラリ(-lm)のリンクフラグ
+LDFLAGS := -lm
 
 # PPX 環境向けの問題サイズと反復回数
 PPX_XSIZE ?= 4480

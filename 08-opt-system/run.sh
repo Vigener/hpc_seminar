@@ -70,24 +70,4 @@ done
 
 echo "[DONE] raw CSV: ${RAWCSV}" >&2
 
-# ==========================================
-# 2. tlog プロファイルの取得 (np=4 固定)
-# ==========================================
-# tlog は通常 trace.log 等に出力されるため、上書きされないように個別に実行してリネームします。
-PROFILE_NP=4
-
-echo "[PROFILE] 実行開始 (最適化前): laplace_basic1" >&2
-mpirun --bind-to core --map-by core -np ${PROFILE_NP} ./bin/laplace_basic1
-if [ -f "trace.log" ]; then
-    mv trace.log out/trace_basic1.log
-    echo "[PROFILE] out/trace_basic1.log に保存しました" >&2
-fi
-
-echo "[PROFILE] 実行開始 (最適化後): laplace_basic1_temporal" >&2
-mpirun --bind-to core --map-by core -np ${PROFILE_NP} ./bin/laplace_basic1_temporal
-if [ -f "trace.log" ]; then
-    mv trace.log out/trace_temporal.log
-    echo "[PROFILE] out/trace_temporal.log に保存しました" >&2
-fi
-
 echo "すべての処理が完了しました。" >&2

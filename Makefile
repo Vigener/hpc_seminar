@@ -14,7 +14,7 @@ init-env:
 # リモートサーバーの設定
 REMOTE_USER := igarashi
 REMOTE_HOST := ppxsvc.ccs.tsukuba.ac.jp
-REMOTE_BASE_DIR := ~/dev/hpc_seminar
+REMOTE_BASE_DIR := ~/work/lab/hpc_seminar
 
 # Macローカルの現在のディレクトリ（Makefileがある場所）
 LOCAL_BASE_DIR := .

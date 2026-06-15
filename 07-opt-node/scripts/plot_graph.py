@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 from collections import defaultdict
 from datetime import datetime  # タイムスタンプ取得用に追加
 from pathlib import Path
@@ -75,6 +76,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("input_file", type=Path, help="入力CSVファイルのパス")
     parser.add_argument("out_dir", type=Path, help="出力先ディレクトリのパス")
+    parser.add_argument(
+        "--suffix",
+        type=str,
+        default="",
+        help="出力ファイル名に付与するサフィックス（例: --suffix _mac → main_comparison_mac.png）",
+    )
     return parser.parse_args()
 
 
@@ -86,8 +93,13 @@ def load_and_average_times(input_file: Path) -> dict[str, dict[str, float]]:
         reader = csv.DictReader(handle)
         for row in reader:
             opt_type = row["opt_type"]
-            # "_n2000" や "_ppx" などのサフィックスを除去してベースのソース名を取得
-            source = row["source"].replace("_n2000_ppx", "").replace("_n2000", "")
+            # "_n2000" や "_ppx", "_mac" などのサフィックスを除去してベースのソース名を取得
+            source = (
+                row["source"]
+                .replace("_n2000_ppx", "")
+                .replace("_n2000_mac", "")
+                .replace("_n2000", "")
+            )
             raw_data[opt_type][source].append(float(row["time"]))
 
     # 平均値の計算
@@ -128,20 +140,34 @@ def plot_grouped_bar(
     ylabel: str,
     generic_annotations: list[str] | None = None,
     ppx_annotations: list[str] | None = None,
+    generic_label: str = "汎用 (-O3)",
+    ppx_label: str = "AMD特化 (-march=znver2)",
 ) -> None:
     x = np.arange(len(labels))
     width = 0.35
 
-    bars1 = ax.bar(
-        x - width / 2, generic_values, width, label="汎用 (-O3)", color="#4c78a8"
-    )
-    bars2 = ax.bar(
-        x + width / 2,
-        ppx_values,
-        width,
-        label="AMD特化 (-march=znver2)",
-        color="#f58518",
-    )
+    has_generic = any(v > 0 for v in generic_values)
+    has_ppx = any(v > 0 for v in ppx_values)
+
+    bars1 = []
+    bars2 = []
+
+    if has_generic and has_ppx:
+        # 両方ある → 通常のグループ棒グラフ
+        bars1 = ax.bar(
+            x - width / 2, generic_values, width, label=generic_label, color="#4c78a8"
+        )
+        bars2 = ax.bar(
+            x + width / 2, ppx_values, width, label=ppx_label, color="#f58518"
+        )
+    elif has_generic:
+        # generic のみ → 単一バー
+        bars1 = ax.bar(
+            x, generic_values, width * 2, label=generic_label, color="#4c78a8"
+        )
+    elif has_ppx:
+        # ppx のみ → 単一バー
+        bars2 = ax.bar(x, ppx_values, width * 2, label=ppx_label, color="#f58518")
 
     ax.set_ylabel(ylabel, fontsize=FONT_SIZE_AXIS_LABEL)
     ax.set_title(title, fontsize=FONT_SIZE_TITLE, pad=18)
@@ -150,36 +176,62 @@ def plot_grouped_bar(
     ax.tick_params(axis="y", labelsize=FONT_SIZE_TICKS)
     ax.set_ylim(bottom=0)
     ax.grid(True, axis="y", linestyle="--", alpha=0.35)
-    ax.legend(fontsize=FONT_SIZE_LEGEND)
+    if has_generic or has_ppx:
+        ax.legend(fontsize=FONT_SIZE_LEGEND)
 
     # アノテーション（値や補足テキスト）の追加
-    for i, bar in enumerate(bars1):
-        text = (
-            generic_annotations[i]
-            if generic_annotations
-            else f"{generic_values[i]:.2f}s"
-        )
-        ax.annotate(
-            text,
-            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
-            xytext=(0, 3),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=10,
-        )
+    if bars1:
+        for i, bar in enumerate(bars1):
+            text = (
+                generic_annotations[i]
+                if generic_annotations
+                else _fmt_time(generic_values[i])
+            )
+            ax.annotate(
+                text,
+                xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+            )
 
-    for i, bar in enumerate(bars2):
-        text = ppx_annotations[i] if ppx_annotations else f"{ppx_values[i]:.2f}s"
-        ax.annotate(
-            text,
-            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
-            xytext=(0, 3),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=10,
-        )
+    if bars2:
+        for i, bar in enumerate(bars2):
+            text = ppx_annotations[i] if ppx_annotations else _fmt_time(ppx_values[i])
+            ax.annotate(
+                text,
+                xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+            )
+
+
+def _fmt_time(val: float) -> str:
+    """0.01s以下は最初の非ゼロ桁まで表示、それ以外は小数点以下2桁"""
+    if val <= 0.0:
+        return "0.00s"
+    if val >= 0.01:
+        return f"{val:.2f}s"
+    n = abs(int(math.floor(math.log10(val))))
+    return f"{val:.{n}f}s"
+
+
+def _filter_order(order: list[str], data: dict[str, float]) -> list[str]:
+    """ORDERリストを、実際にデータが存在するsourceだけに絞り込む"""
+    return [s for s in order if s in data]
+
+
+def _best_or_none(order: list[str], data: dict[str, float]) -> str | None:
+    """データがあるsourceの中から最速のものを返す。一つもなければNone"""
+    available = _filter_order(order, data)
+    if not available:
+        return None
+    return min(available, key=lambda s: data[s])
 
 
 def create_main_graph(
@@ -191,56 +243,79 @@ def create_main_graph(
     generic_texts = []
     ppx_texts = []
 
-    # 1. 基本手法のデータ収集
+    gen_data = avg_data.get("generic", {})
+    ppx_data = avg_data.get("ppx_tuned", {})
+
+    # 1. 基本手法のデータ収集（CSVに存在するものだけ）
     for source in MAIN_SOURCE_ORDER:
+        # どちらのopt_typeにもデータがなければスキップ
+        g_val = gen_data.get(source)
+        p_val = ppx_data.get(source)
+        if g_val is None and p_val is None:
+            continue
         labels.append(MAIN_SOURCE_LABELS[source])
-        g_val = avg_data["generic"].get(source, 0)
-        p_val = avg_data["ppx_tuned"].get(source, 0)
+        g_val = g_val or 0.0
+        p_val = p_val or 0.0
         generic_vals.append(g_val)
         ppx_vals.append(p_val)
-        generic_texts.append(f"{g_val:.2f}s")
-        ppx_texts.append(f"{p_val:.2f}s")
+        generic_texts.append(_fmt_time(g_val) if g_val else "N/A")
+        ppx_texts.append(_fmt_time(p_val) if p_val else "N/A")
 
     # 2. ブロッキング単体の最速値を探す
-    best_g_block = min(
-        BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
-    )
-    best_p_block = min(
-        BLOCKING_ORDER, key=lambda s: avg_data["ppx_tuned"].get(s, float("inf"))
-    )
+    best_g_block = _best_or_none(BLOCKING_ORDER, gen_data)
+    best_p_block = _best_or_none(BLOCKING_ORDER, ppx_data)
 
-    labels.append(MAIN_SOURCE_LABELS["best_blocking"])
-    generic_vals.append(avg_data["generic"].get(best_g_block, 0))
-    ppx_vals.append(avg_data["ppx_tuned"].get(best_p_block, 0))
-
-    size_g_block = best_g_block.replace("matvec_blocking_", "").replace("_", "x")
-    size_p_block = best_p_block.replace("matvec_blocking_", "").replace("_", "x")
-    generic_texts.append(
-        f"{avg_data['generic'].get(best_g_block, 0):.2f}s\n({size_g_block})"
-    )
-    ppx_texts.append(
-        f"{avg_data['ppx_tuned'].get(best_p_block, 0):.2f}s\n({size_p_block})"
-    )
+    if best_g_block or best_p_block:
+        labels.append(MAIN_SOURCE_LABELS["best_blocking"])
+        g_val = gen_data.get(best_g_block, 0) if best_g_block else 0.0
+        p_val = ppx_data.get(best_p_block, 0) if best_p_block else 0.0
+        generic_vals.append(g_val)
+        ppx_vals.append(p_val)
+        size_g_block = (
+            best_g_block.replace("matvec_blocking_", "").replace("_", "x")
+            if best_g_block
+            else "-"
+        )
+        size_p_block = (
+            best_p_block.replace("matvec_blocking_", "").replace("_", "x")
+            if best_p_block
+            else "-"
+        )
+        generic_texts.append(
+            f"{_fmt_time(g_val)}\n({size_g_block})" if best_g_block else "N/A"
+        )
+        ppx_texts.append(f"{_fmt_time(p_val)}\n({size_p_block})" if best_p_block else "N/A")
 
     # 3. 入れ替え＋ブロック（ハイブリッド版）の最速値を探す
-    best_g_hyb = min(
-        LOOPSWAP_BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
-    )
-    best_p_hyb = min(
-        LOOPSWAP_BLOCKING_ORDER,
-        key=lambda s: avg_data["ppx_tuned"].get(s, float("inf")),
-    )
+    best_g_hyb = _best_or_none(LOOPSWAP_BLOCKING_ORDER, gen_data)
+    best_p_hyb = _best_or_none(LOOPSWAP_BLOCKING_ORDER, ppx_data)
 
-    labels.append(MAIN_SOURCE_LABELS["best_loopswap_blocking"])
-    generic_vals.append(avg_data["generic"].get(best_g_hyb, 0))
-    ppx_vals.append(avg_data["ppx_tuned"].get(best_p_hyb, 0))
+    if best_g_hyb or best_p_hyb:
+        labels.append(MAIN_SOURCE_LABELS["best_loopswap_blocking"])
+        g_val = gen_data.get(best_g_hyb, 0) if best_g_hyb else 0.0
+        p_val = ppx_data.get(best_p_hyb, 0) if best_p_hyb else 0.0
+        generic_vals.append(g_val)
+        ppx_vals.append(p_val)
+        size_g_hyb = (
+            best_g_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+            if best_g_hyb
+            else "-"
+        )
+        size_p_hyb = (
+            best_p_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+            if best_p_hyb
+            else "-"
+        )
+        generic_texts.append(f"{_fmt_time(g_val)}\n({size_g_hyb})" if best_g_hyb else "N/A")
+        ppx_texts.append(f"{_fmt_time(p_val)}\n({size_p_hyb})" if best_p_hyb else "N/A")
 
-    size_g_hyb = best_g_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
-    size_p_hyb = best_p_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
-    generic_texts.append(
-        f"{avg_data['generic'].get(best_g_hyb, 0):.2f}s\n({size_g_hyb})"
-    )
-    ppx_texts.append(f"{avg_data['ppx_tuned'].get(best_p_hyb, 0):.2f}s\n({size_p_hyb})")
+    if not labels:
+        print("  [skip] メイン比較グラフに描画可能なデータがありません")
+        return
+
+    # opt_type に応じて凡例ラベルを切り替え
+    gen_label = avg_data.get("_gen_label", "汎用 (-O3)")
+    ppx_label = "AMD特化 (-march=znver2)"
 
     fig, ax = plt.subplots(figsize=(14, 7))
     plot_grouped_bar(
@@ -252,6 +327,8 @@ def create_main_graph(
         "実行時間 [sec]",
         generic_texts,
         ppx_texts,
+        generic_label=gen_label,
+        ppx_label=ppx_label,
     )
 
     fig.tight_layout()
@@ -266,15 +343,27 @@ def create_detail_graph(
     output_file: Path,
     timestamp: str,
 ) -> None:
-    # matvec_blocking_ もしくは matvec_loopswap_blocking_ のプレフィックスを消して 40x8x8 のように整形
+    gen_data = avg_data.get("generic", {})
+    ppx_data = avg_data.get("ppx_tuned", {})
+
+    # CSVに存在するsourceだけに絞り込む
+    available = _filter_order(order_list, gen_data)
+    # ppx側にもあるものをmerge（片方だけにあるケースも拾う）
+    ppx_available = _filter_order(order_list, ppx_data)
+    all_available = list(dict.fromkeys(available + ppx_available))
+    if not all_available:
+        print(f"  [skip] データが一つもないため '{title}' のグラフをスキップします")
+        return
+
+    # matvec_blocking_ / matvec_loopswap_blocking_ プレフィックスを消して 40x8x8 形式に
     labels = [
         s.replace("matvec_loopswap_blocking_", "")
         .replace("matvec_blocking_", "")
         .replace("_", "x")
-        for s in order_list
+        for s in all_available
     ]
-    generic_vals = [avg_data["generic"].get(s, 0) for s in order_list]
-    ppx_vals = [avg_data["ppx_tuned"].get(s, 0) for s in order_list]
+    generic_vals = [gen_data.get(s, 0.0) for s in all_available]
+    ppx_vals = [ppx_data.get(s, 0.0) for s in all_available]
 
     fig, ax = plt.subplots(figsize=(14, 7))
     plot_grouped_bar(
@@ -297,66 +386,116 @@ def print_markdown_tables(avg_data: dict[str, dict[str, float]]) -> None:
     print("【テキストベース解析用データ（Markdown Table）】")
     print("=" * 60 + "\n")
 
+    gen_data = avg_data.get("generic", {})
+    ppx_data = avg_data.get("ppx_tuned", {})
+    has_ppx = len(ppx_data) > 0
+    gen_label = f"{avg_data.get('_gen_label', '汎用 (-O3)')} [sec]"
+    ppx_label = "AMD特化 (-march=znver2) [sec]"
+
     # 1. 全体比較
     print("### 1. 全体比較: N=2000 での最適化手法別実行時間\n")
-    print("| 手法 | 汎用 (-O3) [sec] | AMD特化 (-march=znver2) [sec] |")
-    print("| :--- | :---: | :---: |")
+    if has_ppx:
+        print(f"| 手法 | {gen_label} | {ppx_label} |")
+        print("| :--- | :---: | :---: |")
+    else:
+        print(f"| 手法 | {gen_label} |")
+        print("| :--- | :---: |")
 
     for source in MAIN_SOURCE_ORDER:
+        g_val = gen_data.get(source)
+        p_val = ppx_data.get(source)
+        if g_val is None and p_val is None:
+            continue  # データが無い手法はスキップ
         label = MAIN_SOURCE_LABELS[source].replace("\n", " ")
-        g_val = avg_data["generic"].get(source, 0)
-        p_val = avg_data["ppx_tuned"].get(source, 0)
-        print(f"| {label} | {g_val:.6f} | {p_val:.6f} |")
+        g_str = f"{g_val:.6f}" if g_val is not None else "-"
+        if has_ppx:
+            p_str = f"{p_val:.6f}" if p_val is not None else "-"
+            print(f"| {label} | {g_str} | {p_str} |")
+        else:
+            print(f"| {label} | {g_str} |")
 
-    best_g_block = min(
-        BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
-    )
-    best_p_block = min(
-        BLOCKING_ORDER, key=lambda s: avg_data["ppx_tuned"].get(s, float("inf"))
-    )
-    val_g_block = avg_data["generic"].get(best_g_block, 0)
-    val_p_block = avg_data["ppx_tuned"].get(best_p_block, 0)
-    size_g_block = best_g_block.replace("matvec_blocking_", "").replace("_", "x")
-    size_p_block = best_p_block.replace("matvec_blocking_", "").replace("_", "x")
-    print(
-        f"| ブロッキング単体 (最速値) | {val_g_block:.6f} ({size_g_block}) | {val_p_block:.6f} ({size_p_block}) |"
-    )
+    best_g_block = _best_or_none(BLOCKING_ORDER, gen_data)
+    best_p_block = _best_or_none(BLOCKING_ORDER, ppx_data)
+    if best_g_block or best_p_block:
+        g_str = (
+            f"{gen_data.get(best_g_block, 0):.6f} ({best_g_block.replace('matvec_blocking_', '').replace('_', 'x')})"
+            if best_g_block
+            else "-"
+        )
+        p_str = (
+            f"{ppx_data.get(best_p_block, 0):.6f} ({best_p_block.replace('matvec_blocking_', '').replace('_', 'x')})"
+            if best_p_block
+            else "-"
+        )
+        if has_ppx:
+            print(f"| ブロッキング単体 (最速値) | {g_str} | {p_str} |")
+        else:
+            print(f"| ブロッキング単体 (最速値) | {g_str} |")
 
-    best_g_hyb = min(
-        LOOPSWAP_BLOCKING_ORDER, key=lambda s: avg_data["generic"].get(s, float("inf"))
-    )
-    best_p_hyb = min(
-        LOOPSWAP_BLOCKING_ORDER,
-        key=lambda s: avg_data["ppx_tuned"].get(s, float("inf")),
-    )
-    val_g_hyb = avg_data["generic"].get(best_g_hyb, 0)
-    val_p_hyb = avg_data["ppx_tuned"].get(best_p_hyb, 0)
-    size_g_hyb = best_g_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
-    size_p_hyb = best_p_hyb.replace("matvec_loopswap_blocking_", "").replace("_", "x")
-    print(
-        f"| 入れ替え＋ブロック (最速値) | {val_g_hyb:.6f} ({size_g_hyb}) | {val_p_hyb:.6f} ({size_p_hyb}) |\n"
-    )
+    best_g_hyb = _best_or_none(LOOPSWAP_BLOCKING_ORDER, gen_data)
+    best_p_hyb = _best_or_none(LOOPSWAP_BLOCKING_ORDER, ppx_data)
+    if best_g_hyb or best_p_hyb:
+        g_str = (
+            f"{gen_data.get(best_g_hyb, 0):.6f} ({best_g_hyb.replace('matvec_loopswap_blocking_', '').replace('_', 'x')})"
+            if best_g_hyb
+            else "-"
+        )
+        p_str = (
+            f"{ppx_data.get(best_p_hyb, 0):.6f} ({best_p_hyb.replace('matvec_loopswap_blocking_', '').replace('_', 'x')})"
+            if best_p_hyb
+            else "-"
+        )
+        if has_ppx:
+            print(f"| 入れ替え＋ブロック (最速値) | {g_str} | {p_str} |\n")
+        else:
+            print(f"| 入れ替え＋ブロック (最速値) | {g_str} |\n")
 
     # 2. ブロッキング単体詳細
-    print("### 2. ブロッキング単体: サイズ別実行時間比較 (N=2000)\n")
-    print("| ブロックサイズ | 汎用 (-O3) [sec] | AMD特化 (-march=znver2) [sec] |")
-    print("| :--- | :---: | :---: |")
-    for s in BLOCKING_ORDER:
-        label = s.replace("matvec_blocking_", "").replace("_", "x")
-        g_val = avg_data["generic"].get(s, 0)
-        p_val = avg_data["ppx_tuned"].get(s, 0)
-        print(f"| {label} | {g_val:.6f} | {p_val:.6f} |")
-    print("\n")
+    blocking_available = _filter_order(BLOCKING_ORDER, gen_data)
+    blocking_p_available = _filter_order(BLOCKING_ORDER, ppx_data)
+    blocking_all = list(dict.fromkeys(blocking_available + blocking_p_available))
+    if blocking_all:
+        print("### 2. ブロッキング単体: サイズ別実行時間比較 (N=2000)\n")
+        if has_ppx:
+            print(f"| ブロックサイズ | {gen_label} | {ppx_label} |")
+            print("| :--- | :---: | :---: |")
+        else:
+            print(f"| ブロックサイズ | {gen_label} |")
+            print("| :--- | :---: |")
+        for s in blocking_all:
+            label = s.replace("matvec_blocking_", "").replace("_", "x")
+            g_val = gen_data.get(s)
+            p_val = ppx_data.get(s)
+            g_str = f"{g_val:.6f}" if g_val is not None else "-"
+            if has_ppx:
+                p_str = f"{p_val:.6f}" if p_val is not None else "-"
+                print(f"| {label} | {g_str} | {p_str} |")
+            else:
+                print(f"| {label} | {g_str} |")
+        print("\n")
 
     # 3. 入れ替え＋ブロッキング詳細
-    print("### 3. 入れ替え＋ブロッキング: サイズ別実行時間比較 (N=2000)\n")
-    print("| ブロックサイズ | 汎用 (-O3) [sec] | AMD特化 (-march=znver2) [sec] |")
-    print("| :--- | :---: | :---: |")
-    for s in LOOPSWAP_BLOCKING_ORDER:
-        label = s.replace("matvec_loopswap_blocking_", "").replace("_", "x")
-        g_val = avg_data["generic"].get(s, 0)
-        p_val = avg_data["ppx_tuned"].get(s, 0)
-        print(f"| {label} | {g_val:.6f} | {p_val:.6f} |")
+    hyb_available = _filter_order(LOOPSWAP_BLOCKING_ORDER, gen_data)
+    hyb_p_available = _filter_order(LOOPSWAP_BLOCKING_ORDER, ppx_data)
+    hyb_all = list(dict.fromkeys(hyb_available + hyb_p_available))
+    if hyb_all:
+        print("### 3. 入れ替え＋ブロッキング: サイズ別実行時間比較 (N=2000)\n")
+        if has_ppx:
+            print(f"| ブロックサイズ | {gen_label} | {ppx_label} |")
+            print("| :--- | :---: | :---: |")
+        else:
+            print(f"| ブロックサイズ | {gen_label} |")
+            print("| :--- | :---: |")
+        for s in hyb_all:
+            label = s.replace("matvec_loopswap_blocking_", "").replace("_", "x")
+            g_val = gen_data.get(s)
+            p_val = ppx_data.get(s)
+            g_str = f"{g_val:.6f}" if g_val is not None else "-"
+            if has_ppx:
+                p_str = f"{p_val:.6f}" if p_val is not None else "-"
+                print(f"| {label} | {g_str} | {p_str} |")
+            else:
+                print(f"| {label} | {g_str} |")
     print("\n" + "=" * 60 + "\n")
 
 
@@ -366,23 +505,40 @@ def main() -> None:
 
     avg_data = load_and_average_times(args.input_file)
 
+    # opt_type を正規化: どのCSVでも "generic" と "ppx_tuned" キーが存在するようにする
+    # - PPXのCSV → generic, ppx_tuned がそのまま使われる
+    # - MacのCSV → mac_native を generic にマッピング、ppx_tuned は空
+    if "generic" not in avg_data and "ppx_tuned" not in avg_data:
+        first_opt = next(iter(avg_data))
+        print(f"  [info] 単一opt_type '{first_opt}' を 'generic' として扱います")
+        avg_data = {
+            "generic": avg_data[first_opt],
+            "ppx_tuned": {},
+            "_gen_label": first_opt,
+        }
+    else:
+        avg_data.setdefault("generic", {})
+        avg_data.setdefault("ppx_tuned", {})
+
     # 実行時のタイムスタンプを取得
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # 3つのグラフを生成
-    create_main_graph(avg_data, args.out_dir / "main_comparison.png", timestamp)
+    create_main_graph(
+        avg_data, args.out_dir / f"main_comparison{args.suffix}.png", timestamp
+    )
     create_detail_graph(
         avg_data,
         BLOCKING_ORDER,
         "ブロッキング単体: サイズ別実行時間比較 (N=2000)",
-        args.out_dir / "blocking_comparison.png",
+        args.out_dir / f"blocking_comparison{args.suffix}.png",
         timestamp,
     )
     create_detail_graph(
         avg_data,
         LOOPSWAP_BLOCKING_ORDER,
         "入れ替え＋ブロッキング: サイズ別実行時間比較 (N=2000)",
-        args.out_dir / "loopswap_blocking_comparison.png",
+        args.out_dir / f"loopswap_blocking_comparison{args.suffix}.png",
         timestamp,
     )
 
@@ -391,9 +547,9 @@ def main() -> None:
 
     print(
         f"生成されたグラフは\n"
-        f"  {args.out_dir / 'main_comparison_latest.png'} と \n"
-        f"  {args.out_dir / 'blocking_comparison_latest.png'} と \n"
-        f"  {args.out_dir / 'loopswap_blocking_comparison_latest.png'} \n"
+        f"  {args.out_dir / f'main_comparison{args.suffix}_latest.png'} と \n"
+        f"  {args.out_dir / f'blocking_comparison{args.suffix}_latest.png'} と \n"
+        f"  {args.out_dir / f'loopswap_blocking_comparison{args.suffix}_latest.png'} \n"
         f"として保存されています。\n"
         f"（※履歴は {args.out_dir / timestamp}/ 内にも保存されました）\n"
     )
