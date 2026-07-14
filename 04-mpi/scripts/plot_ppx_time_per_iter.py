@@ -83,7 +83,7 @@ def aggregate(rows: list[dict[str, str]]) -> list[dict[str, str]]:
             continue
         source = row["source"]
         nprocs = int(row["nprocs"])
-        elapsed = float(row["time_per_iter"])
+        elapsed = float(row["elapsed_sec"]) / 1000.0
         grouped[(source, nprocs)].append(elapsed)
 
     summary_rows: list[dict[str, str]] = []
