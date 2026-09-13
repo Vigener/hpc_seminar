@@ -13,7 +13,7 @@ BINS := \
 	$(BIN_DIR)/matvec_simd_reduction \
 	$(BIN_DIR)/matvec_no_simd
 
-.PHONY: all build bench plot clean
+.PHONY: all build bench plot clean edu1-bins edu1 qhpc-bins qhpc
 
 all: build
 
@@ -33,6 +33,16 @@ $(BIN_DIR)/matvec_simd_reduction: matvec_simd_reduction.c | $(BIN_DIR)
 
 $(BIN_DIR)/matvec_no_simd: matvec_no_simd.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@
+
+edu1-bins: $(BIN_DIR)/matvec_serial $(BIN_DIR)/matvec_parallel
+
+qhpc-bins: edu1-bins
+
+edu1: edu1-bins
+	./scripts/run_matvec_edu1.sh
+
+qhpc: qhpc-bins
+	./scripts/run_matvec_edu1.sh
 
 bench: build
 	./scripts/run_matvec_bench.sh
