@@ -6,10 +6,11 @@ CXXFLAGS := -O3 -fopenmp
 all: run
 
 solver: solver.cpp
-	mkdir -p bin
+	mkdir -p bin out
 	$(CXX) $(CXXFLAGS) solver.cpp -o bin/solver
 
 run: solver
+	mkdir -p out
 	./bin/solver
 
 run-thrd: solver
@@ -23,4 +24,4 @@ run-thrd: solver
 	./bin/solver; \
 
 clean:
-	rm -f bin/solver out/residuals.csv
+	rm -f bin/solver out/residuals.csv out/summary.csv

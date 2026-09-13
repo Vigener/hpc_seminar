@@ -14,6 +14,32 @@ struct CRSMatrix {
     std::vector<int> row_ptr;
 };
 
+// 残差履歴と最終解。iterations は残差配列の末尾インデックス (size-1)。
+struct SolverResult {
+    std::vector<double> residuals;
+    std::vector<double> x;
+};
+
+double l2_error_to_ones(const std::vector<double>& x) {
+    double sum = 0.0;
+    int n = static_cast<int>(x.size());
+    for (int i = 0; i < n; ++i) {
+        double d = x[i] - 1.0;
+        sum += d * d;
+    }
+    return std::sqrt(sum);
+}
+
+double inf_error_to_ones(const std::vector<double>& x) {
+    double m = 0.0;
+    int n = static_cast<int>(x.size());
+    for (int i = 0; i < n; ++i) {
+        double a = std::abs(x[i] - 1.0);
+        if (a > m) m = a;
+    }
+    return m;
+}
+
 // 内積を計算する関数 (OpenMPのReductionによる並列化)
 double dot_product(const std::vector<double>& x, const std::vector<double>& y) {
     double sum = 0.0;
@@ -97,7 +123,7 @@ CRSMatrix create_matrix_AT(int n, double gamma) {
 }
 
 // BiCG法
-std::vector<double> solve_BiCG(const CRSMatrix& A, const CRSMatrix& AT, const std::vector<double>& b, int max_iter, double eps) {
+SolverResult solve_BiCG(const CRSMatrix& A, const CRSMatrix& AT, const std::vector<double>& b, int max_iter, double eps) {
     int n = A.n;
     std::vector<double> x(n, 0.0);
     std::vector<double> r = b; 
@@ -108,7 +134,7 @@ std::vector<double> solve_BiCG(const CRSMatrix& A, const CRSMatrix& AT, const st
     std::vector<double> q_star(n, 0.0);
     
     double b_norm2 = dot_product(b, b);
-    if (b_norm2 == 0.0) return {0.0};
+    if (b_norm2 == 0.0) return {{0.0}, x};
     double b_norm = std::sqrt(b_norm2);
     
     std::vector<double> res_history;
@@ -149,11 +175,11 @@ std::vector<double> solve_BiCG(const CRSMatrix& A, const CRSMatrix& AT, const st
         r = r_next;
         r_star = r_star_next;
     }
-    return res_history;
+    return {res_history, x};
 }
 
 // BiCGSTAB法
-std::vector<double> solve_BiCGSTAB(const CRSMatrix& A, const std::vector<double>& b, int max_iter, double eps) {
+SolverResult solve_BiCGSTAB(const CRSMatrix& A, const std::vector<double>& b, int max_iter, double eps) {
     int n = A.n;
     std::vector<double> x(n, 0.0);
     std::vector<double> r = b; 
@@ -164,7 +190,7 @@ std::vector<double> solve_BiCGSTAB(const CRSMatrix& A, const std::vector<double>
     std::vector<double> s(n, 0.0);
     
     double b_norm2 = dot_product(b, b);
-    if (b_norm2 == 0.0) return {0.0};
+    if (b_norm2 == 0.0) return {{0.0}, x};
     double b_norm = std::sqrt(b_norm2);
     
     std::vector<double> res_history;
@@ -211,12 +237,28 @@ std::vector<double> solve_BiCGSTAB(const CRSMatrix& A, const std::vector<double>
         
         r = r_next;
     }
-    return res_history;
+    return {res_history, x};
+}
+
+static void write_summary_row(std::ofstream& sumfs, double gamma, const std::string& method,
+                              const SolverResult& result, double time_sec) {
+    int iterations = result.residuals.empty() ? 0 : static_cast<int>(result.residuals.size() - 1);
+    double final_rel = result.residuals.empty() ? 0.0 : result.residuals.back();
+    double l2 = l2_error_to_ones(result.x);
+    double inf = inf_error_to_ones(result.x);
+    sumfs << std::fixed << std::setprecision(1) << gamma << ","
+          << method << ","
+          << iterations << ","
+          << std::scientific << std::setprecision(16)
+          << final_rel << ","
+          << l2 << ","
+          << inf << ","
+          << std::fixed << std::setprecision(6) << time_sec << "\n";
 }
 
 int main() {
     int n = 50000; 
-    std::vector<double> gammas = {0.1, 0.5, 0.9};
+    std::vector<double> gammas = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
     int max_iter = 10000;
     double eps = 1e-12;
     
@@ -229,6 +271,8 @@ int main() {
 
     std::ofstream ofs("out/residuals.csv");
     ofs << "Iteration,Method,Gamma,RelativeResidual\n";
+    std::ofstream sumfs("out/summary.csv");
+    sumfs << "gamma,method,iterations,final_rel_res,l2_err_to_ones,inf_err_to_ones,time_sec\n";
     
     std::vector<double> ones(n, 1.0); // 右辺ベクトルの準備用配列
     
@@ -243,31 +287,38 @@ int main() {
         
         // --- BiCG法の時間計測 ---
         double start_time_bicg = omp_get_wtime();
-        std::vector<double> res_BiCG = solve_BiCG(A, AT, b, max_iter, eps);
+        SolverResult res_BiCG = solve_BiCG(A, AT, b, max_iter, eps);
         double end_time_bicg = omp_get_wtime();
         double time_bicg = end_time_bicg - start_time_bicg;
 
-        for (size_t i = 0; i < res_BiCG.size(); ++i) {
-            ofs << i << ",BiCG," << gamma << "," << std::scientific << res_BiCG[i] << "\n";
+        for (size_t i = 0; i < res_BiCG.residuals.size(); ++i) {
+            ofs << i << ",BiCG," << gamma << "," << std::scientific << res_BiCG.residuals[i] << "\n";
         }
+        write_summary_row(sumfs, gamma, "BiCG", res_BiCG, time_bicg);
         
         // --- BiCGSTAB法の時間計測 ---
         double start_time_bicgstab = omp_get_wtime();
-        std::vector<double> res_BiCGSTAB = solve_BiCGSTAB(A, b, max_iter, eps);
+        SolverResult res_BiCGSTAB = solve_BiCGSTAB(A, b, max_iter, eps);
         double end_time_bicgstab = omp_get_wtime();
         double time_bicgstab = end_time_bicgstab - start_time_bicgstab;
 
-        for (size_t i = 0; i < res_BiCGSTAB.size(); ++i) {
-            ofs << i << ",BiCGSTAB," << gamma << "," << std::scientific << res_BiCGSTAB[i] << "\n";
+        for (size_t i = 0; i < res_BiCGSTAB.residuals.size(); ++i) {
+            ofs << i << ",BiCGSTAB," << gamma << "," << std::scientific << res_BiCGSTAB.residuals[i] << "\n";
         }
+        write_summary_row(sumfs, gamma, "BiCGSTAB", res_BiCGSTAB, time_bicgstab);
         
-        std::cout << "  [BiCG]     Converged in " << res_BiCG.size() - 1 
-                  << " iters. Time: " << std::fixed << std::setprecision(6) << time_bicg << " sec\n";
-        std::cout << "  [BiCGSTAB] Converged in " << res_BiCGSTAB.size() - 1 
-                  << " iters. Time: " << std::fixed << std::setprecision(6) << time_bicgstab << " sec\n\n";
+        std::cout << "  [BiCG]     Converged in " << res_BiCG.residuals.size() - 1 
+                  << " iters. Time: " << std::fixed << std::setprecision(6) << time_bicg << " sec"
+                  << "  ||x-1||_2=" << std::scientific << l2_error_to_ones(res_BiCG.x)
+                  << "  ||x-1||_inf=" << inf_error_to_ones(res_BiCG.x) << "\n";
+        std::cout << "  [BiCGSTAB] Converged in " << res_BiCGSTAB.residuals.size() - 1 
+                  << " iters. Time: " << std::fixed << std::setprecision(6) << time_bicgstab << " sec"
+                  << "  ||x-1||_2=" << std::scientific << l2_error_to_ones(res_BiCGSTAB.x)
+                  << "  ||x-1||_inf=" << inf_error_to_ones(res_BiCGSTAB.x) << "\n\n";
     }
     
     ofs.close();
-    std::cout << "Results written to out/residuals.csv\n";
+    sumfs.close();
+    std::cout << "Results written to out/residuals.csv and out/summary.csv\n";
     return 0;
 }
